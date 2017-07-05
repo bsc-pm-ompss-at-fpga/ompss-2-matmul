@@ -3,7 +3,8 @@
 **Name**: Matrix Multiplication Kernel  
 **Contact Person**: PM Group, pm-tools@bsc.es  
 **License Agreement**: GPL  
-**Platform**: OmpSs
+**Platform**: OmpSs  
+[![build status](https://pm.bsc.es/gitlab/applications/ompss/matmul/badges/master/build.svg)](https://pm.bsc.es/gitlab/applications/ompss/matmul/commits/master)
 
 
 ### Description
