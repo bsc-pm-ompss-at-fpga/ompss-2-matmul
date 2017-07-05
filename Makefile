@@ -1,4 +1,4 @@
-CFLAGS_      = $(CFLAGS) -O3
+CFLAGS_      = $(CFLAGS) -O3 -std=gnu99
 MCC_FLAGS_   = --ompss
 MCC_FLAGS_I_ = --instrument
 MCC_FLAGS_D_ = --debug -g -k

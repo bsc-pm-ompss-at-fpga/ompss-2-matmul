@@ -25,38 +25,13 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
 
-#include <sys/time.h>
-#include <time.h>
-
-#ifdef USE_MKL
-#  include <mkl.h>
-#endif
-
-#define FALSE (0)
-#define TRUE (1)
-#define VAL_A 587
-#define VAL_B 437
-#define VAL_C 0
-
-// Global variables
-unsigned int bsize, b2size, check_ok;
-typedef double elem_t; //NOTE: MKL only implemented for doubles
-
-void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> <block size> [<check>]\n", argv0);
-}
-
-double wall_time () {
-   struct timespec ts;
-   clock_gettime(CLOCK_MONOTONIC,&ts);
-   return (double) (ts.tv_sec) + (double) ts.tv_nsec * 1.0e-9;
-}
+#include "matmul.h"
 
 #if defined(TIMING_ALL)
+#  pragma omp task device(smp) copy_deps
 #  pragma omp task out([b2size]v)
 #endif
 void setBlock (elem_t* v, const elem_t val) {
@@ -66,6 +41,7 @@ void setBlock (elem_t* v, const elem_t val) {
 }
 
 #if defined(TIMING_ALL)
+#  pragma omp task device(smp) copy_deps
 #  pragma omp task in([b2size]v)
 #endif
 void checkBlock (elem_t* v, const elem_t val) {
@@ -78,16 +54,9 @@ void checkBlock (elem_t* v, const elem_t val) {
    }
 }
 
+#pragma omp target device(fpga) copy_deps onto(0,2)
 #pragma omp task in([b2size]a, [b2size]b) inout([b2size]c)
 void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
-#ifdef USE_MKL
-   elem_t const alpha = 1.0;
-   elem_t const beta = 1.0;
-   char const transa = 'n';
-   char const transb = 'n';
-   DGEMM(&transa, &transb, &bsize, &bsize, &bsize, &alpha, a,
-         &bsize, b, &bsize, &beta, c, &bsize);
-#else
    for (unsigned int i = 0; i < bsize; ++i) {
       for (unsigned int j = 0; j < bsize; ++j) {
          elem_t l = 0;
@@ -97,20 +66,17 @@ void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
          c[i*bsize + j] += l;
       }
    }
-#endif
 }
 
 int main(int argc, char** argv) {
-   if (argc < 3) {
+   if (argc < 2) {
       usage(argv[0]);
       exit(1);
    }
 
    unsigned int const msize = atoi(argv[1]);
    unsigned int const m2size = msize*msize;
-   unsigned char const check = argc > 3 ? atoi(argv[3]) : 1;
-   bsize = atoi(argv[2]);
-   b2size = bsize*bsize;
+   unsigned char const check = argc > 3 ? atoi(argv[2]) : 1;
    if (msize%bsize != 0) {
       fprintf(stderr, "ERROR:\t<matrix size> must be multiple of <block size>\n");
       usage(argv[0]);
