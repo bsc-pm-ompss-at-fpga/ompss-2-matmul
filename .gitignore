@@ -1,0 +1,4 @@
+*.o
+*_matmul.c
+matmul
+matmul-*

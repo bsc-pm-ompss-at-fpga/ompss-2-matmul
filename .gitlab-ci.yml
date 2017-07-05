@@ -1,0 +1,12 @@
+image: pm/ompss-dev
+job:
+    only:
+        - master
+        - tags
+        - triggers
+        - schedules
+    script: |
+        make
+        ./matmul-d 512 128
+        ./matmul-p 512 128
+        ./matmul-i 512 128
