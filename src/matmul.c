@@ -44,7 +44,7 @@
 
 // Global variables
 unsigned int bsize, b2size, check_ok;
-typedef double elem_t;
+typedef double elem_t; //NOTE: MKL only implemented for doubles
 
 void usage (char* argv0) {
    fprintf(stderr, "USAGE:\t%s <matrix size> <block size> [<check>]\n", argv0);
