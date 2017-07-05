@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
    if (check) {
       check_ok = TRUE;
-      printf( "==================== CHECKING ===================== \n" );
+      printf( "=================== CHECKING ===================== \n" );
       for (unsigned int i = 0; i < m2size; i += b2size) {
          checkBlock(&c[i], VAL_A*VAL_B*msize + VAL_C);
       }
