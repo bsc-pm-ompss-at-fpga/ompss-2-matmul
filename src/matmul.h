@@ -41,6 +41,7 @@
 // Global variables
 unsigned int check_ok;
 typedef float elem_t;
+const float threshold = 1e-4;
 const unsigned int bsize = 64;
 const unsigned int b2size = 4096;
 
