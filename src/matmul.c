@@ -44,6 +44,7 @@
 
 // Global variables
 unsigned int bsize, b2size, check_ok;
+const float threshold = 1e-4;
 typedef double elem_t; //NOTE: MKL only implemented for doubles
 
 void usage (char* argv0) {
@@ -68,10 +69,12 @@ void setBlock (elem_t* v, const elem_t val) {
 #if defined(TIMING_ALL)
 #  pragma omp task in([b2size]v)
 #endif
-void checkBlock (elem_t* v, const elem_t val) {
-   for (unsigned int i = 0; i < b2size; ++i) {
+void checkBlock (elem_t* v, const elem_t val, const float threshold) {
+   const elem_t maxv = val * (1.0 + threshold);
+   const elem_t minv = val * (1.0 - threshold);
+   for (unsigned int i = 0; i < b2size && check_ok; ++i) {
       elem_t tmp = v[i];
-      if (tmp != val && check_ok) {
+      if (tmp > maxv || tmp < minv) {
          check_ok = FALSE;
          fprintf(stderr, "ERROR:\t Expected a %d but found %d.", val, tmp);
       }
@@ -160,7 +163,7 @@ int main(int argc, char** argv) {
       check_ok = TRUE;
       printf( "=================== CHECKING ===================== \n" );
       for (unsigned int i = 0; i < m2size; i += b2size) {
-         checkBlock(&c[i], VAL_A*VAL_B*msize + VAL_C);
+         checkBlock(&c[i], VAL_A*VAL_B*msize + VAL_C, threshold);
       }
    }
 
