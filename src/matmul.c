@@ -56,18 +56,24 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
    }
 }
 
-#pragma omp target device(fpga) copy_deps onto(0,2)
-#pragma omp task in([b2size]a, [b2size]b) inout([b2size]c)
-void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
-   for (unsigned int i = 0; i < bsize; ++i) {
-      for (unsigned int j = 0; j < bsize; ++j) {
-         elem_t l = 0;
-         for (unsigned int k = 0; k < bsize; ++k) {
-            l += a[i*bsize + k] * b[k*bsize + j];
-         }
-         c[i*bsize + j] += l;
-      }
-   }
+#pragma omp target device(fpga) copy_deps onto(0, 1)
+#pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
+void matmulBlock( elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize] )
+{
+	int i, j, k;
+
+#pragma HLS array_partition variable=A block factor=bsize/2 dim=2
+#pragma HLS array_partition variable=B block factor=bsize/2 dim=1
+    for (i=0; i < bsize; i++) {
+        for (j=0; j < bsize; j++) {
+#pragma HLS pipeline II=1
+            elem_t sum = C[i][j];
+            for (k=0; k < bsize; k++) {
+                sum += A[i][k] * B[k][j];
+            }
+            C[i][j] = sum;
+        }
+    }
 }
 
 int main(int argc, char** argv) {
@@ -114,7 +120,9 @@ int main(int argc, char** argv) {
             unsigned int const ai = j*b2size + k*bsize*msize;
             unsigned int const bi = k*b2size + i*bsize*msize;
             unsigned int const ci = j*b2size + i*bsize*msize;
-            matmulBlock(&a[ai], &b[bi], &c[ci]);
+            matmulBlock((elem_t(*)[bsize])&a[ai],
+                        (elem_t(*)[bsize])&b[bi],
+                        (elem_t(*)[bsize])&c[ci]);
          }
       }
    }
