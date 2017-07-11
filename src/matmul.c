@@ -58,22 +58,21 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
 
 #pragma omp target device(fpga) copy_deps onto(0, 1)
 #pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
-void matmulBlock( elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize] )
-{
-	int i, j, k;
+void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize]) {
+   unsigned int i, j, k;
 
 #pragma HLS array_partition variable=A block factor=bsize/2 dim=2
 #pragma HLS array_partition variable=B block factor=bsize/2 dim=1
-    for (i=0; i < bsize; i++) {
-        for (j=0; j < bsize; j++) {
+   for (i = 0; i < bsize; i++) {
+      for (j = 0; j < bsize; j++) {
 #pragma HLS pipeline II=1
-            elem_t sum = C[i][j];
-            for (k=0; k < bsize; k++) {
-                sum += A[i][k] * B[k][j];
-            }
-            C[i][j] = sum;
-        }
-    }
+         elem_t sum = C[i][j];
+         for (k = 0; k < bsize; k++) {
+            sum += A[i][k] * B[k][j];
+         }
+         C[i][j] = sum;
+      }
+   }
 }
 
 int main(int argc, char** argv) {
