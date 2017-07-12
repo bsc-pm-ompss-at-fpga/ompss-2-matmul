@@ -83,7 +83,7 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
 
 #pragma omp task in([b2size]a, [b2size]b) inout([b2size]c)
 void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
-#ifdef USE_MKL
+#if defined(USE_MKL) || defined(USE_OPEN_BLAS)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
    char const transa = 'n';
