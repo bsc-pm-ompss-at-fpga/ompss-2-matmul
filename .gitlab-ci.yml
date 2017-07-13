@@ -7,6 +7,6 @@ job:
         - schedules
     script: |
         make
-        ./matmul-d 32 8
-        ./matmul-p 32 8
-        ./matmul-i 32 8
+        ./matmul-d 32 8 1
+        ./matmul-p 32 8 1
+        ./matmul-i 32 8 1
