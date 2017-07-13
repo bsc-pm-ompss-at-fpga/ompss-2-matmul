@@ -34,6 +34,8 @@
 
 #ifdef USE_MKL
 #  include <mkl.h>
+#elif USE_OPENBLAS
+#  include <cblas.h>
 #endif
 
 #define FALSE (0)
@@ -76,20 +78,25 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
       elem_t tmp = v[i];
       if (tmp > maxv || tmp < minv) {
          check_ok = FALSE;
-         fprintf(stderr, "ERROR:\t Expected a %d but found %d.", val, tmp);
+         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.", (double)val, (double)tmp);
       }
    }
 }
 
 #pragma omp task in([b2size]a, [b2size]b) inout([b2size]c)
 void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
-#if defined(USE_MKL) || defined(USE_OPEN_BLAS)
+#if defined(USE_MKL)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
    char const transa = 'n';
    char const transb = 'n';
    DGEMM(&transa, &transb, &bsize, &bsize, &bsize, &alpha, a,
          &bsize, b, &bsize, &beta, c, &bsize);
+#elif defined(USE_OPENBLAS)
+   elem_t const alpha = 1.0;
+   elem_t const beta = 1.0;
+   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, bsize, bsize,
+      bsize, alpha, a, bsize, b, bsize, beta, c, bsize);
 #else
    for (unsigned int i = 0; i < bsize; ++i) {
       for (unsigned int j = 0; j < bsize; ++j) {
