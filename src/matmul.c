@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
    unsigned int const msize = atoi(argv[1]);
    unsigned int const m2size = msize*msize;
-   unsigned char const check = argc > 3 ? atoi(argv[2]) : 1;
+   unsigned char const check = argc > 2 ? atoi(argv[2]) : 1;
    if (msize%bsize != 0) {
       fprintf(stderr, "ERROR:\t<matrix size> must be multiple of <block size>\n");
       usage(argv[0]);
