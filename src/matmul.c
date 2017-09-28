@@ -81,7 +81,7 @@ void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsi
    }
 }
 
-#if 0 /* Disable it for now */
+#if defined(USE_IMPLEMENTS)
 //#pragma omp target device(smp) copy_deps implements(matmulBlock)
 #pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([bsize]C)
 #pragma omp task in([bsize]A, [bsize]B) inout([bsize]C)

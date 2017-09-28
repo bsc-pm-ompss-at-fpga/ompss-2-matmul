@@ -14,6 +14,7 @@ The task implementation may be changed if support for some external library is e
 
 To taskify the matrices initialization and the result checking by blocks, the option `-DTIMING_ALL` can be added to the `CFLAGS` environment variable. In addition, the timing shown at the execution end will include those new tasks.
 
+To use the IMPLEMENTS feature, which allow have several implementations for a same task, the option `-DUSE_IMPLEMENTS` can be added to the `CFLAGS` environment variable. This will cause the matmulBlock funtion have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
 
 ### Build instructions
 Clone the repository:
