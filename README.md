@@ -36,6 +36,9 @@ The supported ones are:
   - `MKL_DIR`. Installation directory of MKL library. The default value is: `$MKLROOT`.
     - `MKL_INC_DIR`. Installation directory of includes for MKL library. The default value is: `$MKL_DIR/include`.
     - `MKL_LIB_DIR`. Installation directory of OS libraries for MKL library. The default value is: `$MKL_DIR/lib`.
+  - `OPENBLAS_DIR`. Installation directory of OpenBLAS library. The default value is: `$OPENBLAS_HOME`.
+    - `OPENBLAS_INC_DIR`. Installation directory of includes for OpenBLAS library. The default value is: `$OPENBLAS_DIR/include`.
+    - `OPENBLAS_LIB_DIR`. Installation directory of OS libraries for OpenBLAS library. The default value is: `$OPENBLAS_DIR/lib`.
 
 
 For example, the build step to cross-compile the application for ARM using the `smpcc` profile may be:

@@ -28,6 +28,12 @@
 #include<stdlib.h>
 #include<unistd.h>
 
+#ifdef USE_MKL
+#  include <mkl.h>
+#elif USE_OPENBLAS
+#  include <cblas.h>
+#endif
+
 #include "matmul.h"
 
 #if defined(TIMING_ALL)
@@ -51,7 +57,7 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
       elem_t tmp = v[i];
       if (tmp > maxv || tmp < minv) {
          check_ok = FALSE;
-         fprintf(stderr, "ERROR:\t Expected a %d but found %d.", val, tmp);
+         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.", (double)val, (double)tmp);
       }
    }
 }
@@ -74,6 +80,40 @@ void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsi
       }
    }
 }
+
+#if 0 /* Disable it for now */
+//#pragma omp target device(smp) copy_deps implements(matmulBlock)
+#pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([bsize]C)
+#pragma omp task in([bsize]A, [bsize]B) inout([bsize]C)
+void matmulBlockSmp(elem_t (*A)[bsize], elem_t (*B)[bsize], elem_t (*C)[bsize]) {
+   elem_t * a = (elem_t *)( &A[0] );
+   elem_t * b = (elem_t *)( &B[0] );
+   elem_t * c = (elem_t *)( &C[0] );
+#if defined(USE_MKL)
+   elem_t const alpha = 1.0;
+   elem_t const beta = 1.0;
+   char const transa = 'n';
+   char const transb = 'n';
+   DGEMM(&transa, &transb, &bsize, &bsize, &bsize, &alpha, a,
+         &bsize, b, &bsize, &beta, c, &bsize);
+#elif defined(USE_OPENBLAS)
+   elem_t const alpha = 1.0;
+   elem_t const beta = 1.0;
+   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, bsize, bsize,
+      bsize, alpha, a, bsize, b, bsize, beta, c, bsize);
+#else
+   for (unsigned int i = 0; i < bsize; ++i) {
+      for (unsigned int j = 0; j < bsize; ++j) {
+         elem_t l = 0;
+         for (unsigned int k = 0; k < bsize; ++k) {
+            l += a[i*bsize + k] * b[k*bsize + j];
+         }
+         c[i*bsize + j] += l;
+      }
+   }
+#endif
+}
+#endif
 
 int main(int argc, char** argv) {
    if (argc < 2) {
