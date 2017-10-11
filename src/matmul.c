@@ -37,8 +37,13 @@
 #include "matmul.h"
 
 #if defined(TIMING_ALL)
-#  pragma omp task device(smp) copy_deps
-#  pragma omp task out([b2size]v)
+#  if defined(USE_DMA_MEM)
+#    pragma omp task device(smp) no_copy_deps
+#    pragma omp task out([b2size]v)
+#  else
+#    pragma omp task device(smp) copy_deps
+#    pragma omp task out([b2size]v)
+#  endif //defined(USE_DMA_MEM)
 #endif
 void setBlock (elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < b2size; ++i) {
@@ -47,8 +52,13 @@ void setBlock (elem_t* v, const elem_t val) {
 }
 
 #if defined(TIMING_ALL)
-#  pragma omp task device(smp) copy_deps
-#  pragma omp task in([b2size]v)
+#  if defined(USE_DMA_MEM)
+#    pragma omp task device(smp) no_copy_deps
+#    pragma omp task out([b2size]v)
+#  else
+#    pragma omp task device(smp) copy_deps
+#    pragma omp task out([b2size]v)
+#  endif //defined(USE_DMA_MEM)
 #endif
 void checkBlock (elem_t* v, const elem_t val, const float threshold) {
    const elem_t maxv = val * (1.0 + threshold);
@@ -61,9 +71,13 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
       }
    }
 }
-
-#pragma omp target device(fpga) copy_deps onto(0, 1)
-#pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
+#if defined(USE_DMA_MEM)
+#  pragma omp target device(fpga) no_copy_deps onto(0, 1)
+#  pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
+#else
+#  pragma omp target device(fpga) copy_deps onto(0, 1)
+#  pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
+#endif //defined(USE_DMA_MEM)
 void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize]) {
    unsigned int i, j, k;
 
@@ -82,9 +96,14 @@ void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsi
 }
 
 #if defined(USE_IMPLEMENTS)
-//#pragma omp target device(smp) copy_deps implements(matmulBlock)
-#pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([bsize]C)
-#pragma omp task in([bsize]A, [bsize]B) inout([bsize]C)
+#  if defined(USE_DMA_MEM)
+#    pragma omp target device(smp) no_copy_deps implements(matmulBlock)
+#    pragma omp task in([bsize]A, [bsize]B) inout([bsize]C)
+#  else
+//#    pragma omp target device(smp) copy_deps implements(matmulBlock)
+#    pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([bsize]C)
+#    pragma omp task in([bsize]A, [bsize]B) inout([bsize]C)
+#  endif //defined(USE_DMA_MEM)
 void matmulBlockSmp(elem_t (*A)[bsize], elem_t (*B)[bsize], elem_t (*C)[bsize]) {
    elem_t * a = (elem_t *)( &A[0] );
    elem_t * b = (elem_t *)( &B[0] );
@@ -130,9 +149,16 @@ int main(int argc, char** argv) {
       exit(1);
    }
 
-   elem_t* a = (elem_t *)(malloc(m2size*sizeof(elem_t)));
-   elem_t* b = (elem_t *)(malloc(m2size*sizeof(elem_t)));
-   elem_t* c = (elem_t *)(malloc(m2size*sizeof(elem_t)));
+   size_t s = m2size*sizeof(elem_t);
+#if defined(USE_DMA_MEM)
+   elem_t* a = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
+   elem_t* b = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
+   elem_t* c = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
+#else
+   elem_t* a = (elem_t *)(malloc(s));
+   elem_t* b = (elem_t *)(malloc(s));
+   elem_t* c = (elem_t *)(malloc(s));
+#endif //defined(USE_DMA_MEM)
    if (a == NULL || b == NULL || c == NULL) {
       fprintf(stderr, "ERROR:\tCannot allocate memory for the matrices\n");
       exit(1);
@@ -193,9 +219,15 @@ int main(int argc, char** argv) {
       printf( "================================================== \n" );
    }
 
+#if defined(USE_DMA_MEM)
+   nanos_fpga_free_dma_mem(a);
+   nanos_fpga_free_dma_mem(b);
+   nanos_fpga_free_dma_mem(c);
+#else
    free(a);
    free(b);
    free(c);
+#endif //defined(USE_DMA_MEM)
 
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
@@ -203,3 +235,7 @@ int main(int argc, char** argv) {
    printf( "================================================== \n" );
 
 }
+
+#if defined(USE_DMA_MEM) && defined(USE_IMPLEMENTS)
+#  warning Using DMA memory (-DUSE_DMA_MEM) when using the implements option  (-DUSE_IMPLEMENTS). The performance of SMP tasks may be wery poor.
+#endif //defined(USE_DMA_MEM) && defined(USE_IMPLEMENTS)

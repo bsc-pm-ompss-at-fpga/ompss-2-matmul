@@ -12,10 +12,6 @@ This application performs the multiplication of two square matrices. The matrice
 
 The task implementation may be changed if support for some external library is enabled at compile time. Otherwise, a basic implementation is provided. See the *Build variables* section for more information.
 
-To taskify the matrices initialization and the result checking by blocks, the option `-DTIMING_ALL` can be added to the `CFLAGS` environment variable. In addition, the timing shown at the execution end will include those new tasks.
-
-To use the IMPLEMENTS feature, which allow have several implementations for a same task, the option `-DUSE_IMPLEMENTS` can be added to the `CFLAGS` environment variable. This will cause the matmulBlock funtion have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
-
 ### Build instructions
 Clone the repository:
 ```
@@ -30,7 +26,10 @@ make
 ##### Build variables
 You can change the build process defining or modifying some environment variables.
 The supported ones are:
-  - `CFLAGS`
+  - `CFLAGS`. Compiler flags. The following preprocessor variables can be defined to modify the application:
+    - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing shown at the execution end will include those new tasks.
+    - `-DUSE_IMPLEMENTS`. Enable the implements feature. This will cause the matmulBlock function have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
+    - `-DUSE_DMA_MEM`. Allocate the blocked matrices in kernel memory instead of user-space memory.
   - `LDFLAGS`
   - `MCC`. If not defined, the default value is: `mcc`. However, for SMP machines we recommend the use of `smpcc`.
   - `CROSS_COMPILE`
