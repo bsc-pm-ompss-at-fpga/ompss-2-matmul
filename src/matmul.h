@@ -49,14 +49,14 @@ unsigned int bsize, b2size, check_ok;
 const float threshold = 1e-4;
 
 // Elements type and MKL/OpenBLAS interface
-#if defined(USE_FLOAT)
-   typedef float      elem_t;
-#  define  GEMM       SGEMM
-#  define  cblas_gemm cblas_sgemm
-#else
+#if defined(USE_DOUBLE)
    typedef double     elem_t;
 #  define  GEMM       DGEMM
 #  define  cblas_gemm cblas_dgemm
+#else
+   typedef float      elem_t;
+#  define  GEMM       SGEMM
+#  define  cblas_gemm cblas_sgemm
 #endif /* defined(USE_FLOAT) */
 
 void usage (char* argv0) {
