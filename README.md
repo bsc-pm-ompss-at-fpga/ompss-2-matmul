@@ -40,6 +40,7 @@ The supported ones are:
     - `OPENBLAS_INC_DIR`. Installation directory of includes for OpenBLAS library. The default value is: `$OPENBLAS_DIR/include`.
     - `OPENBLAS_LIB_DIR`. Installation directory of OS libraries for OpenBLAS library. The default value is: `$OPENBLAS_DIR/lib`.
 
+To check the correct support detection of backend libraries, you can use the `make info` target once the environment variables are properly set.
 
 For example, the build step to cross-compile the application for ARM using the `smpcc` profile may be:
 ```
@@ -47,7 +48,6 @@ export MCC=smpcc
 export CROSS_COMPILE=arm-linux-gnueabihf-
 make
 ```
-
 
 ### Run instructions
 The name of each binary file created by build step ends with a suffix which determines the version:
