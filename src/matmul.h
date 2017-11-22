@@ -60,8 +60,7 @@ const float threshold = 1e-4;
 #endif /* defined(USE_FLOAT) */
 
 void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> [<check>]\n", argv0);
-   fprintf(stderr, "      \t<block size> is fixed to %u\n", bsize);
+   fprintf(stderr, "USAGE:\t%s <matrix size> <block size> [<check>]\n", argv0);
 }
 
 double wall_time () {
