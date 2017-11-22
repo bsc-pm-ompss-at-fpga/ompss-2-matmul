@@ -12,9 +12,6 @@ This application performs the multiplication of two square matrices. The matrice
 
 The task implementation may be changed if support for some external library is enabled at compile time. Otherwise, a basic implementation is provided. See the *Build variables* section for more information.
 
-To taskify the matrices initialization and the result checking by blocks, the option `-DTIMING_ALL` can be added to the `CFLAGS` environment variable. In addition, the timing shown at the execution end will include those new tasks.
-
-
 ### Build instructions
 Clone the repository:
 ```
@@ -30,6 +27,8 @@ make
 You can change the build process defining or modifying some environment variables.
 The supported ones are:
   - `CFLAGS`
+    - `-DUSE_DOUBLE`. Defining the `USE_DOUBLE` variable the matix elements are of type `double` instead of `float`.
+    - `-DTIMING_ALL`. Defining the `TIMING_ALL` variable 'taskifies' the matrices initialization and the result checking by blocks. In addition, the timing shown at the execution end will include those new tasks.
   - `LDFLAGS`
   - `MCC`. If not defined, the default value is: `mcc`. However, for SMP machines we recommend the use of `smpcc`.
   - `CROSS_COMPILE`
