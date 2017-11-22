@@ -28,9 +28,15 @@
 #ifndef _MATMUL_H_
 #define _MATMUL_H_
 
-#include<stdio.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
+
+#ifdef USE_MKL
+#  include <mkl.h>
+#elif USE_OPENBLAS
+#  include <cblas.h>
+#endif
 
 #define FALSE (0)
 #define TRUE (1)
@@ -40,10 +46,22 @@
 
 // Global variables
 unsigned int check_ok;
-typedef float elem_t;
 const float threshold = 1e-4;
 const unsigned int bsize = 64;
-const unsigned int b2size = 4096;
+const unsigned int b2size = 4096; //NOTE: Must be bsize*bsize
+
+// Elements type and MKL/OpenBLAS interface
+#if defined(USE_DOUBLE)
+   typedef double     elem_t;
+#  define  ELEM_T_STR "double"
+#  define  GEMM       DGEMM
+#  define  cblas_gemm cblas_dgemm
+#else
+   typedef float      elem_t;
+#  define  ELEM_T_STR "float"
+#  define  GEMM       SGEMM
+#  define  cblas_gemm cblas_sgemm
+#endif /* defined(USE_FLOAT) */
 
 void usage (char* argv0) {
    fprintf(stderr, "USAGE:\t%s <matrix size> [<check>]\n", argv0);

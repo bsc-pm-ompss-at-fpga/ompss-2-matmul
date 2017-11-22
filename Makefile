@@ -32,6 +32,7 @@ PROGS_   = $(PROGRAM_)-p $(PROGRAM_)-i $(PROGRAM_)-d
 
 MCC  ?= mcc
 MCC_  = $(CROSS_COMPILE)$(MCC)
+GCC_  = $(CROSS_COMPILE)gcc
 
 all: $(PROGS_)
 
@@ -43,6 +44,27 @@ $(PROGRAM_)-i:  ./src/$(PROGRAM_).c
 
 $(PROGRAM_)-d:  ./src/$(PROGRAM_).c
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_D_) $^ -o $@ $(LDFLAGS_)
+
+$(PROGRAM_)-seq: ./src/$(PROGRAM_).c
+	$(GCC_) $(CFLAGS_) $^ -o $@ $(LDFLAGS_)
+
+info:
+	@echo "========== OPENBLAS =========="
+	@echo "  SUPPORT enabled:  $(OPENBLAS_SUPPORT_)"
+	@echo "  OPENBLAS_DIR:     $(OPENBLAS_DIR)"
+	@echo "  OPENBLAS_INC_DIR: $(OPENBLAS_INC_DIR)"
+	@echo "  OPENBLAS_LIB_DIR: $(OPENBLAS_LIB_DIR)"
+	@echo "  Headers:          $(if $(wildcard $(OPENBLAS_INC_DIR)/lapacke.h ),YES,NO)"
+	@echo "  Lib files (.so):  $(if $(wildcard $(OPENBLAS_LIB_DIR)/libopenblas.so ),YES,NO)"
+	@echo "=============================="
+	@echo "============= MKL ============"
+	@echo "  SUPPORT enabled:  $(MKL_SUPPORT_)"
+	@echo "  MKL_DIR:          $(MKL_DIR)"
+	@echo "  MKL_INC_DIR:      $(MKL_INC_DIR)"
+	@echo "  MKL_LIB_DIR:      $(MKL_LIB_DIR)"
+	@echo "  Headers:          $(if $(wildcard $(MKL_INC_DIR)/mkl.h ),YES,NO)"
+	@echo "  Lib files (.so):  $(if $(wildcard $(MKL_LIB_DIR)/libmkl_sequential.so ),YES,NO)"
+	@echo "=============================="
 
 clean:
 	rm -f *.o $(PROGS_) $(MCC_)_$(PROGRAM_).c

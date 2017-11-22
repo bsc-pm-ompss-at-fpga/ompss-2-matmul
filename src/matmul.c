@@ -25,14 +25,8 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include<stdlib.h>
-#include<unistd.h>
-
-#ifdef USE_MKL
-#  include <mkl.h>
-#elif USE_OPENBLAS
-#  include <cblas.h>
-#endif
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "matmul.h"
 
@@ -113,12 +107,12 @@ void matmulBlockSmp(elem_t (*A)[bsize], elem_t (*B)[bsize], elem_t (*C)[bsize]) 
    elem_t const beta = 1.0;
    char const transa = 'n';
    char const transb = 'n';
-   DGEMM(&transa, &transb, &bsize, &bsize, &bsize, &alpha, a,
+   GEMM(&transa, &transb, &bsize, &bsize, &bsize, &alpha, a,
          &bsize, b, &bsize, &beta, c, &bsize);
 #elif defined(USE_OPENBLAS)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
-   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, bsize, bsize,
+   cblas_gemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, bsize, bsize,
       bsize, alpha, a, bsize, b, bsize, beta, c, bsize);
 #else
    for (unsigned int i = 0; i < bsize; ++i) {
@@ -231,6 +225,7 @@ int main(int argc, char** argv) {
 
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
+   printf( "  Elements type: %s\n", ELEM_T_STR );
    printf( "  Execution time (secs): %f\n", t_end - t_start );
    printf( "================================================== \n" );
 

@@ -27,6 +27,7 @@ make
 You can change the build process defining or modifying some environment variables.
 The supported ones are:
   - `CFLAGS`. Compiler flags. The following preprocessor variables can be defined to modify the application:
+    - `-DUSE_DOUBLE`. The matix elements are of type `double` instead of `float`.
     - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing shown at the execution end will include those new tasks.
     - `-DUSE_IMPLEMENTS`. Enable the implements feature. This will cause the matmulBlock function have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
     - `-DUSE_DMA_MEM`. Allocate the blocked matrices in kernel memory instead of user-space memory.
@@ -40,6 +41,7 @@ The supported ones are:
     - `OPENBLAS_INC_DIR`. Installation directory of includes for OpenBLAS library. The default value is: `$OPENBLAS_DIR/include`.
     - `OPENBLAS_LIB_DIR`. Installation directory of OS libraries for OpenBLAS library. The default value is: `$OPENBLAS_DIR/lib`.
 
+To check the correct support detection of backend libraries, you can use the `make info` target once the environment variables are properly set.
 
 For example, the build step to cross-compile the application for ARM using the `smpcc` profile may be:
 ```
@@ -47,7 +49,6 @@ export MCC=smpcc
 export CROSS_COMPILE=arm-linux-gnueabihf-
 make
 ```
-
 
 ### Run instructions
 The name of each binary file created by build step ends with a suffix which determines the version:
