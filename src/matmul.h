@@ -51,10 +51,12 @@ const float threshold = 1e-4;
 // Elements type and MKL/OpenBLAS interface
 #if defined(USE_DOUBLE)
    typedef double     elem_t;
+#  define  ELEM_T_STR "double"
 #  define  GEMM       DGEMM
 #  define  cblas_gemm cblas_dgemm
 #else
    typedef float      elem_t;
+#  define  ELEM_T_STR "float"
 #  define  GEMM       SGEMM
 #  define  cblas_gemm cblas_sgemm
 #endif /* defined(USE_FLOAT) */

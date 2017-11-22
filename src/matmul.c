@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
+   printf( "  Elements type: %s\n", ELEM_T_STR );
    printf( "  Execution time (secs): %f\n", t_end - t_start );
    printf( "================================================== \n" );
 
