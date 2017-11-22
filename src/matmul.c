@@ -66,10 +66,10 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
    }
 }
 #if defined(USE_DMA_MEM)
-#  pragma omp target device(fpga) no_copy_deps onto(0, 1)
+#  pragma omp target device(fpga) no_copy_deps onto(0) num_instances(1)
 #  pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
 #else
-#  pragma omp target device(fpga) copy_deps onto(0, 1)
+#  pragma omp target device(fpga) copy_deps onto(0) num_instances(1)
 #  pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
 #endif //defined(USE_DMA_MEM)
 void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize]) {
