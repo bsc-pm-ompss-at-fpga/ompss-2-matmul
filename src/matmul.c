@@ -174,15 +174,19 @@ int main(int argc, char** argv) {
    double t_start = wall_time();
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
-      for (unsigned int j = 0; j < msize/bsize; j++) {
-         for (unsigned int k = 0; k < msize/bsize; k++) {
-            unsigned int const ai = j*b2size + k*bsize*msize;
-            unsigned int const bi = k*b2size + i*bsize*msize;
-            unsigned int const ci = j*b2size + i*bsize*msize;
-            matmulBlock((elem_t(*)[bsize])&a[ai],
-                        (elem_t(*)[bsize])&b[bi],
-                        (elem_t(*)[bsize])&c[ci]);
+      #pragma omp task firstprivate(i)
+      {
+         for (unsigned int j = 0; j < msize/bsize; j++) {
+            for (unsigned int k = 0; k < msize/bsize; k++) {
+               unsigned int const ai = j*b2size + k*bsize*msize;
+               unsigned int const bi = k*b2size + i*bsize*msize;
+               unsigned int const ci = j*b2size + i*bsize*msize;
+               matmulBlock((elem_t(*)[bsize])&a[ai],
+                           (elem_t(*)[bsize])&b[bi],
+                           (elem_t(*)[bsize])&c[ci]);
+            }
          }
+         #pragma omp taskwait
       }
    }
 

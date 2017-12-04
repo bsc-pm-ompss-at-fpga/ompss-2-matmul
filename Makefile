@@ -1,5 +1,5 @@
 CFLAGS_      = $(CFLAGS) -O3 -std=gnu99
-MCC_FLAGS_   = --ompss
+MCC_FLAGS_   = --ompss --variable=disable_final_clause_transformation:1
 MCC_FLAGS_I_ = --instrument
 MCC_FLAGS_D_ = --debug -g -k
 LDFLAGS_     = $(LDFLAGS)
