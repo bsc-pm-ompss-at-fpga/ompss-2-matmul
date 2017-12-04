@@ -48,10 +48,10 @@ void setBlock (elem_t* v, const elem_t val) {
 #if defined(TIMING_ALL)
 #  if defined(USE_DMA_MEM)
 #    pragma omp task device(smp) no_copy_deps
-#    pragma omp task out([b2size]v)
+#    pragma omp task in([b2size]v)
 #  else
 #    pragma omp task device(smp) copy_deps
-#    pragma omp task out([b2size]v)
+#    pragma omp task in([b2size]v)
 #  endif //defined(USE_DMA_MEM)
 #endif
 void checkBlock (elem_t* v, const elem_t val, const float threshold) {
@@ -158,9 +158,8 @@ int main(int argc, char** argv) {
       exit(1);
    }
 
-   double t_start, t_end;
 #if defined(TIMING_ALL)
-   t_start = wall_time();
+   double t_ini_start = wall_time();
 #endif
 
    for (unsigned int i = 0; i < m2size; i += b2size) {
@@ -169,9 +168,10 @@ int main(int argc, char** argv) {
       setBlock(&c[i], VAL_C);
    }
 
-#if !defined(TIMING_ALL)
-   t_start = wall_time();
+#if defined(TIMING_ALL)
+   #pragma omp taskwait
 #endif
+   double t_start = wall_time();
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
       for (unsigned int j = 0; j < msize/bsize; j++) {
@@ -186,10 +186,8 @@ int main(int argc, char** argv) {
       }
    }
 
-#if !defined(TIMING_ALL)
    #pragma omp taskwait
-   t_end = wall_time();
-#endif
+   double t_end = wall_time();
 
    if (check) {
       check_ok = TRUE;
@@ -201,7 +199,7 @@ int main(int argc, char** argv) {
 
 #if defined(TIMING_ALL)
    #pragma omp taskwait
-   t_end = wall_time();
+   double t_check_end = wall_time();
 #endif
 
    if (check) {
@@ -227,6 +225,10 @@ int main(int argc, char** argv) {
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
    printf( "  Elements type: %s\n", ELEM_T_STR );
    printf( "  Execution time (secs): %f\n", t_end - t_start );
+#if defined(TIMING_ALL)
+   printf( "  Initialization time (secs): %f\n", t_start - t_ini_start );
+   printf( "  Checking time (secs): %f\n", t_check_end - t_end );
+#endif //defined(TIMING_ALL)
    printf( "================================================== \n" );
 
 }
