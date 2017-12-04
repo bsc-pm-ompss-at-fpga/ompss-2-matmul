@@ -72,7 +72,7 @@ void checkBlock (elem_t* v, const elem_t val, const float threshold) {
 #  pragma omp target device(fpga) copy_deps onto(0) num_instances(1)
 #  pragma omp task inout([bsize]C) in([bsize]A, [bsize]B)
 #endif //defined(USE_DMA_MEM)
-void matmulBlock(elem_t (*A)[bsize], elem_t B[bsize][bsize], elem_t C[bsize][bsize]) {
+void matmulBlock(elem_t (*A)[bsize], elem_t (*B)[bsize], elem_t (*C)[bsize]) {
    unsigned int i, j, k;
 
 #pragma HLS array_partition variable=A block factor=bsize/2 dim=2
