@@ -28,7 +28,7 @@ You can change the build process defining or modifying some environment variable
 The supported ones are:
   - `CFLAGS`. Compiler flags. The following preprocessor variables can be defined to modify the application:
     - `-DUSE_DOUBLE`. The matix elements are of type `double` instead of `float`.
-    - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing shown at the execution end will include those new tasks.
+    - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing summary will contain the time spent in both steps.
     - `-DUSE_IMPLEMENTS`. Enable the implements feature. This will cause the matmulBlock function have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
     - `-DUSE_DMA_MEM`. Allocate the blocked matrices in kernel memory instead of user-space memory.
   - `LDFLAGS`
