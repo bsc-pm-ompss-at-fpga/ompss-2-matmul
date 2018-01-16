@@ -122,13 +122,17 @@ int main(int argc, char** argv) {
 #endif
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
-      for (unsigned int j = 0; j < msize/bsize; j++) {
-         for (unsigned int k = 0; k < msize/bsize; k++) {
-            unsigned int const ai = j*b2size + k*bsize*msize;
-            unsigned int const bi = k*b2size + i*bsize*msize;
-            unsigned int const ci = j*b2size + i*bsize*msize;
-            matmulBlock(&a[ai], &b[bi], &c[ci]);
+      #pragma omp task firstprivate(i)
+      {
+         for (unsigned int j = 0; j < msize/bsize; j++) {
+            for (unsigned int k = 0; k < msize/bsize; k++) {
+               unsigned int const ai = j*b2size + k*bsize*msize;
+               unsigned int const bi = k*b2size + i*bsize*msize;
+               unsigned int const ci = j*b2size + i*bsize*msize;
+               matmulBlock(&a[ai], &b[bi], &c[ci]);
+            }
          }
+         #pragma omp taskwait
       }
    }
 
