@@ -113,10 +113,10 @@ int main(int argc, char** argv) {
    t_start = wall_time();
 #endif
 
-   for (unsigned int i = 0; i < m2size; i += b2size) {
-      setBlock(b2size, &a[i], VAL_A);
-      setBlock(b2size, &b[i], VAL_B);
-      setBlock(b2size, &c[i], VAL_C);
+   for (unsigned int i = 0; i < m2size/b2size; i++) {
+      setBlock(b2size, &a[i*b2size], VAL_A + i);
+      setBlock(b2size, &b[i*b2size], VAL_B - i);
+      setBlock(b2size, &c[i*b2size], VAL_C);
    }
 
 #if !defined(TIMING_ALL)
@@ -124,18 +124,14 @@ int main(int argc, char** argv) {
 #endif
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
-//      #pragma omp task firstprivate(i)
-//      {
-         for (unsigned int j = 0; j < msize/bsize; j++) {
-            for (unsigned int k = 0; k < msize/bsize; k++) {
-               unsigned int const ai = j*b2size + k*bsize*msize;
-               unsigned int const bi = k*b2size + i*bsize*msize;
-               unsigned int const ci = j*b2size + i*bsize*msize;
-               matmulBlock(bsize, &a[ai], &b[bi], &c[ci]);
-            }
+      for (unsigned int j = 0; j < msize/bsize; j++) {
+         for (unsigned int k = 0; k < msize/bsize; k++) {
+            unsigned int const ai = k*b2size + i*bsize*msize;
+            unsigned int const bi = j*b2size + k*bsize*msize;
+            unsigned int const ci = j*b2size + i*bsize*msize;
+            matmulBlock(bsize, &a[ai], &b[bi], &c[ci]);
          }
-//         #pragma omp taskwait
-//      }
+      }
    }
 
 #if !defined(TIMING_ALL)
@@ -146,8 +142,16 @@ int main(int argc, char** argv) {
    unsigned int check_ok = TRUE;
    if (check) {
       printf( "=================== CHECKING ===================== \n" );
-      for (unsigned int i = 0; i < m2size; i += b2size) {
-         checkBlock(b2size, &check_ok, &c[i], VAL_A*VAL_B*msize + VAL_C, threshold);
+      for (unsigned int i = 0; i < msize/bsize; i++) {
+         for (unsigned int j = 0; j < msize/bsize; j++) {
+            elem_t val = VAL_C;
+            for (unsigned int k = 0; k < msize/bsize; k++) {
+               val += ((elem_t)VAL_A + (elem_t)(i*msize/bsize + k))*
+                      ((elem_t)VAL_B - (elem_t)(k*msize/bsize + j))*
+                      (elem_t)bsize;
+            }
+            checkBlock(b2size, &check_ok, &c[i*bsize*msize + j*b2size], val, threshold);
+         }
       }
    }
 
