@@ -45,13 +45,13 @@ void setBlock (unsigned int const size, elem_t* v, const elem_t val) {
 void checkBlock (unsigned int const size, unsigned int * check_ok,
    elem_t* v, const elem_t val, const float threshold )
 {
-   const elem_t maxv = val * (1.0 + threshold);
-   const elem_t minv = val * (1.0 - threshold);
+   const elem_t maxv = val * (1.0 + (val < 0 ? -threshold : threshold));
+   const elem_t minv = val * (1.0 - (val < 0 ? -threshold : threshold));
    for (unsigned int i = 0; i < size && ( *check_ok ); ++i) {
       elem_t tmp = v[i];
       if (tmp > maxv || tmp < minv) {
          *check_ok = FALSE;
-         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.", (double)val, (double)tmp);
+         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.\n", (double)val, (double)tmp);
       }
    }
 }
@@ -114,9 +114,9 @@ int main(int argc, char** argv) {
 #endif
 
    for (unsigned int i = 0; i < m2size/b2size; i++) {
-      setBlock(b2size, &a[i*b2size], VAL_A + i);
-      setBlock(b2size, &b[i*b2size], VAL_B - i);
-      setBlock(b2size, &c[i*b2size], VAL_C);
+      setBlock(b2size, &a[i*b2size], (elem_t)VAL_A + i);
+      setBlock(b2size, &b[i*b2size], (elem_t)VAL_B - i);
+      setBlock(b2size, &c[i*b2size], (elem_t)VAL_C);
    }
 
 #if !defined(TIMING_ALL)
@@ -142,13 +142,11 @@ int main(int argc, char** argv) {
    unsigned int check_ok = TRUE;
    if (check) {
       printf( "=================== CHECKING ===================== \n" );
-      for (unsigned int i = 0; i < msize/bsize; i++) {
-         for (unsigned int j = 0; j < msize/bsize; j++) {
+      for (unsigned int i = 0; i < msize/bsize && check_ok; i++) {
+         for (unsigned int j = 0; j < msize/bsize && check_ok; j++) {
             elem_t val = VAL_C;
             for (unsigned int k = 0; k < msize/bsize; k++) {
-               val += ((elem_t)VAL_A + (elem_t)(i*msize/bsize + k))*
-                      ((elem_t)VAL_B - (elem_t)(k*msize/bsize + j))*
-                      (elem_t)bsize;
+               val += a[i*msize*bsize + k*b2size]*b[k*msize*bsize + j*b2size]*bsize;
             }
             checkBlock(b2size, &check_ok, &c[i*bsize*msize + j*b2size], val, threshold);
          }
