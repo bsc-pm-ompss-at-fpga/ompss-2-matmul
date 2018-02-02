@@ -1,10 +1,7 @@
-image: pm/ompss-dev
+image: bscpm/ompss-ci
 job:
-    only:
-        - master
-        - tags
-        - triggers
-        - schedules
+    except:
+        - fpga
     script: |
         make
         ./matmul-d 32 8 1

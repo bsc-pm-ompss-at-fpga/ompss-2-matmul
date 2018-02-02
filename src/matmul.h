@@ -45,10 +45,8 @@
 #define VAL_C 0
 
 // Global variables
-unsigned int check_ok;
-const float threshold = 1e-4;
-const unsigned int bsize = 64;
-const unsigned int b2size = 4096; //NOTE: Must be bsize*bsize
+const float THRESHOLD = 1e-4;
+const unsigned int BSIZE = 128;
 
 // Elements type and MKL/OpenBLAS interface
 #if defined(USE_DOUBLE)
@@ -65,7 +63,7 @@ const unsigned int b2size = 4096; //NOTE: Must be bsize*bsize
 
 void usage (char* argv0) {
    fprintf(stderr, "USAGE:\t%s <matrix size> [<check>]\n", argv0);
-   fprintf(stderr, "      \t<block size> is fixed to %u\n", bsize);
+   fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
 }
 
 double wall_time () {
