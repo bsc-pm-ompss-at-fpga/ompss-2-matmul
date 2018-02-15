@@ -124,6 +124,10 @@ int main(int argc, char** argv) {
 #endif
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
+//NOTE: Assuming that the following task will be executed in a shared memory environment.
+//      Otherwise, it must define the input and output data of child tasks.
+#pragma omp task firstprivate(i)
+{
       for (unsigned int j = 0; j < msize/bsize; j++) {
          unsigned int const ci = j*b2size + i*bsize*msize;
          for (unsigned int k = 0; k < msize/bsize; k++) {
@@ -132,6 +136,8 @@ int main(int argc, char** argv) {
             matmulBlock(bsize, &a[ai], &b[bi], &c[ci]);
          }
       }
+      #pragma omp taskwait
+}
    }
 
 #if !defined(TIMING_ALL)
