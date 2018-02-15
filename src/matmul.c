@@ -69,24 +69,27 @@ void checkBlock (unsigned int * check_ok, elem_t* v, const elem_t val, const flo
 
 #if defined(USE_DMA_MEM)
 #  pragma omp target device(fpga) no_copy_deps onto(0) num_instances(1)
-#  pragma omp task inout([BSIZE]C) in([BSIZE]A, [BSIZE]B)
+#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 #else
 #  pragma omp target device(fpga) copy_deps onto(0) num_instances(1)
-#  pragma omp task inout([BSIZE]C) in([BSIZE]A, [BSIZE]B)
+#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 #endif //defined(USE_DMA_MEM)
-void matmulBlock(elem_t (*A)[BSIZE], elem_t (*B)[BSIZE], elem_t (*C)[BSIZE]) {
+void matmulBlock(elem_t *a, elem_t *b, elem_t *c) {
    unsigned int i, j, k;
+   elem_t (*aa)[BSIZE] = (elem_t(*)[BSIZE])(a);
+   elem_t (*bb)[BSIZE] = (elem_t(*)[BSIZE])(b);
+   elem_t (*cc)[BSIZE] = (elem_t(*)[BSIZE])(c);
 
-#pragma HLS array_partition variable=A block factor=BSIZE/2 dim=2
-#pragma HLS array_partition variable=B block factor=BSIZE/2 dim=1
+#pragma HLS array_partition variable=aa block factor=BSIZE/2 dim=2
+#pragma HLS array_partition variable=bb block factor=BSIZE/2 dim=1
    for (i = 0; i < BSIZE; i++) {
       for (j = 0; j < BSIZE; j++) {
 #pragma HLS pipeline II=1
-         elem_t sum = C[i][j];
+         elem_t sum = cc[i][j];
          for (k = 0; k < BSIZE; k++) {
-            sum += A[i][k] * B[k][j];
+            sum += aa[i][k] * bb[k][j];
          }
-         C[i][j] = sum;
+         cc[i][j] = sum;
       }
    }
 }
@@ -94,16 +97,13 @@ void matmulBlock(elem_t (*A)[BSIZE], elem_t (*B)[BSIZE], elem_t (*C)[BSIZE]) {
 #if defined(USE_IMPLEMENTS)
 #  if defined(USE_DMA_MEM)
 #    pragma omp target device(smp) no_copy_deps implements(matmulBlock)
-#    pragma omp task in([BSIZE]aa, [BSIZE]bb) inout([BSIZE]cc)
+#    pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 #  else
 //#    pragma omp target device(smp) copy_deps implements(matmulBlock)
-#    pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE]cc)
-#    pragma omp task in([BSIZE]aa, [BSIZE]bb) inout([BSIZE]cc)
+#    pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE*BSIZE]c)
+#    pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 #  endif //defined(USE_DMA_MEM)
-void matmulBlockSmp(elem_t (*aa)[BSIZE], elem_t (*bb)[BSIZE], elem_t (*cc)[BSIZE]) {
-   elem_t * a = (elem_t *)( &aa[0] );
-   elem_t * b = (elem_t *)( &bb[0] );
-   elem_t * c = (elem_t *)( &cc[0] );
+void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 #if defined(USE_MKL)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
@@ -177,20 +177,21 @@ int main(int argc, char** argv) {
    double t_start = wall_time();
 
    for (unsigned int i = 0; i < msize/BSIZE; i++) {
-      #pragma omp task firstprivate(i)
-      {
-         for (unsigned int j = 0; j < msize/BSIZE; j++) {
-            for (unsigned int k = 0; k < msize/BSIZE; k++) {
-               unsigned int const ai = k*b2size + i*BSIZE*msize;
-               unsigned int const bi = j*b2size + k*BSIZE*msize;
-               unsigned int const ci = j*b2size + i*BSIZE*msize;
-               matmulBlock((elem_t(*)[BSIZE])&a[ai],
-                           (elem_t(*)[BSIZE])&b[bi],
-                           (elem_t(*)[BSIZE])&c[ci]);
-            }
+//NOTE: Assuming that the following task will be executed in a shared memory environment.
+//      Otherwise, it must define the input and output data of child tasks.
+#pragma omp task firstprivate(i)
+{
+      for (unsigned int j = 0; j < msize/BSIZE; j++) {
+         unsigned int const ci = j*b2size + i*BSIZE*msize;
+         for (unsigned int k = 0; k < msize/BSIZE; k++) {
+            unsigned int const ai = k*b2size + i*BSIZE*msize;
+            unsigned int const bi = j*b2size + k*BSIZE*msize;
+            matmulBlock(&a[ai], &b[bi], &c[ci]);
          }
          #pragma omp taskwait
       }
+      #pragma omp taskwait
+}
    }
 
    #pragma omp taskwait
@@ -203,9 +204,12 @@ int main(int argc, char** argv) {
          for (unsigned int j = 0; j < msize/BSIZE && check_ok; j++) {
             elem_t val = VAL_C;
             for (unsigned int k = 0; k < msize/BSIZE; k++) {
-               val += a[i*msize*BSIZE + k*b2size]*b[k*msize*BSIZE + j*b2size]*BSIZE;
+               unsigned int const ai = k*b2size + i*BSIZE*msize;
+               unsigned int const bi = j*b2size + k*BSIZE*msize;
+               val += a[ai]*b[bi]*BSIZE;
             }
-            checkBlock(&check_ok, &c[i*BSIZE*msize + j*b2size], val, THRESHOLD);
+            unsigned int const ci = j*b2size + i*BSIZE*msize;
+            checkBlock(&check_ok, &c[ci], val, THRESHOLD);
          }
       }
    }
