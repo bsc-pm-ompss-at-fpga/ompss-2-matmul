@@ -33,7 +33,7 @@
 #if defined(TIMING_ALL)
 #  pragma omp task out([size]v)
 #endif
-void setBlock (unsigned int const size, elem_t* v, const elem_t val) {
+void setBlock(unsigned int const size, elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < size; ++i) {
       v[i] = val;
    }
@@ -42,7 +42,7 @@ void setBlock (unsigned int const size, elem_t* v, const elem_t val) {
 #if defined(TIMING_ALL)
 #  pragma omp task in([size]v) concurrent([1]check_ok)
 #endif
-void checkBlock (unsigned int const size, unsigned int * check_ok,
+void checkBlock(unsigned int const size, unsigned int * check_ok,
    elem_t* v, const elem_t val, const float threshold )
 {
    const elem_t maxv = val * (1.0 + (val < 0 ? -threshold : threshold));
@@ -57,7 +57,7 @@ void checkBlock (unsigned int const size, unsigned int * check_ok,
 }
 
 #pragma omp task in([bsize*bsize]a, [bsize*bsize]b) inout([bsize*bsize]c)
-void matmulBlock (unsigned int const bsize, elem_t* a, elem_t* b, elem_t* c) {
+void matmulBlock(unsigned int const bsize, elem_t* a, elem_t* b, elem_t* c) {
 #if defined(USE_MKL)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
@@ -125,10 +125,10 @@ int main(int argc, char** argv) {
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
       for (unsigned int j = 0; j < msize/bsize; j++) {
+         unsigned int const ci = j*b2size + i*bsize*msize;
          for (unsigned int k = 0; k < msize/bsize; k++) {
             unsigned int const ai = k*b2size + i*bsize*msize;
             unsigned int const bi = j*b2size + k*bsize*msize;
-            unsigned int const ci = j*b2size + i*bsize*msize;
             matmulBlock(bsize, &a[ai], &b[bi], &c[ci]);
          }
       }
@@ -146,9 +146,12 @@ int main(int argc, char** argv) {
          for (unsigned int j = 0; j < msize/bsize && check_ok; j++) {
             elem_t val = VAL_C;
             for (unsigned int k = 0; k < msize/bsize; k++) {
-               val += a[i*msize*bsize + k*b2size]*b[k*msize*bsize + j*b2size]*bsize;
+               unsigned int const ai = k*b2size + i*bsize*msize;
+               unsigned int const bi = j*b2size + k*bsize*msize;
+               val += a[ai]*b[bi]*bsize;
             }
-            checkBlock(b2size, &check_ok, &c[i*bsize*msize + j*b2size], val, threshold);
+            unsigned int const ci = j*b2size + i*bsize*msize;
+            checkBlock(b2size, &check_ok, &c[ci], val, threshold);
          }
       }
    }
