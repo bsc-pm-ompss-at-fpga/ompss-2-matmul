@@ -45,7 +45,6 @@
 #define VAL_C 0
 
 // Global variables
-unsigned int bsize, b2size, check_ok;
 const float threshold = 1e-4;
 
 // Elements type and MKL/OpenBLAS interface

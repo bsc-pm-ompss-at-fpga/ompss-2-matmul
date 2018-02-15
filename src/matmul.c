@@ -31,31 +31,33 @@
 #include "matmul.h"
 
 #if defined(TIMING_ALL)
-#  pragma omp task out([b2size]v)
+#  pragma omp task out([size]v)
 #endif
-void setBlock (elem_t* v, const elem_t val) {
-   for (unsigned int i = 0; i < b2size; ++i) {
+void setBlock(unsigned int const size, elem_t* v, const elem_t val) {
+   for (unsigned int i = 0; i < size; ++i) {
       v[i] = val;
    }
 }
 
 #if defined(TIMING_ALL)
-#  pragma omp task in([b2size]v)
+#  pragma omp task in([size]v) concurrent([1]check_ok)
 #endif
-void checkBlock (elem_t* v, const elem_t val, const float threshold) {
-   const elem_t maxv = val * (1.0 + threshold);
-   const elem_t minv = val * (1.0 - threshold);
-   for (unsigned int i = 0; i < b2size && check_ok; ++i) {
+void checkBlock(unsigned int const size, unsigned int * check_ok,
+   elem_t* v, const elem_t val, const float threshold )
+{
+   const elem_t maxv = val * (1.0 + (val < 0 ? -threshold : threshold));
+   const elem_t minv = val * (1.0 - (val < 0 ? -threshold : threshold));
+   for (unsigned int i = 0; i < size && ( *check_ok ); ++i) {
       elem_t tmp = v[i];
       if (tmp > maxv || tmp < minv) {
-         check_ok = FALSE;
-         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.", (double)val, (double)tmp);
+         *check_ok = FALSE;
+         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.\n", (double)val, (double)tmp);
       }
    }
 }
 
-#pragma omp task in([b2size]a, [b2size]b) inout([b2size]c)
-void matmulBlock (elem_t* a, elem_t* b, elem_t* c) {
+#pragma omp task in([bsize*bsize]a, [bsize*bsize]b) inout([bsize*bsize]c)
+void matmulBlock(unsigned int const bsize, elem_t* a, elem_t* b, elem_t* c) {
 #if defined(USE_MKL)
    elem_t const alpha = 1.0;
    elem_t const beta = 1.0;
@@ -90,8 +92,8 @@ int main(int argc, char** argv) {
    unsigned int const msize = atoi(argv[1]);
    unsigned int const m2size = msize*msize;
    unsigned char const check = argc > 3 ? atoi(argv[3]) : 1;
-   bsize = atoi(argv[2]);
-   b2size = bsize*bsize;
+   unsigned int const bsize = atoi(argv[2]);
+   unsigned int const b2size = bsize*bsize;
    if (msize%bsize != 0) {
       fprintf(stderr, "ERROR:\t<matrix size> must be multiple of <block size>\n");
       usage(argv[0]);
@@ -111,10 +113,10 @@ int main(int argc, char** argv) {
    t_start = wall_time();
 #endif
 
-   for (unsigned int i = 0; i < m2size; i += b2size) {
-      setBlock(&a[i], VAL_A);
-      setBlock(&b[i], VAL_B);
-      setBlock(&c[i], VAL_C);
+   for (unsigned int i = 0; i < m2size/b2size; i++) {
+      setBlock(b2size, &a[i*b2size], (elem_t)VAL_A + i);
+      setBlock(b2size, &b[i*b2size], (elem_t)VAL_B - i);
+      setBlock(b2size, &c[i*b2size], (elem_t)VAL_C);
    }
 
 #if !defined(TIMING_ALL)
@@ -122,18 +124,20 @@ int main(int argc, char** argv) {
 #endif
 
    for (unsigned int i = 0; i < msize/bsize; i++) {
-      #pragma omp task firstprivate(i)
-      {
-         for (unsigned int j = 0; j < msize/bsize; j++) {
-            for (unsigned int k = 0; k < msize/bsize; k++) {
-               unsigned int const ai = j*b2size + k*bsize*msize;
-               unsigned int const bi = k*b2size + i*bsize*msize;
-               unsigned int const ci = j*b2size + i*bsize*msize;
-               matmulBlock(&a[ai], &b[bi], &c[ci]);
-            }
+//NOTE: Assuming that the following task will be executed in a shared memory environment.
+//      Otherwise, it must define the input and output data of child tasks.
+#pragma omp task firstprivate(i)
+{
+      for (unsigned int j = 0; j < msize/bsize; j++) {
+         unsigned int const ci = j*b2size + i*bsize*msize;
+         for (unsigned int k = 0; k < msize/bsize; k++) {
+            unsigned int const ai = k*b2size + i*bsize*msize;
+            unsigned int const bi = j*b2size + k*bsize*msize;
+            matmulBlock(bsize, &a[ai], &b[bi], &c[ci]);
          }
-         #pragma omp taskwait
       }
+      #pragma omp taskwait
+}
    }
 
 #if !defined(TIMING_ALL)
@@ -141,11 +145,20 @@ int main(int argc, char** argv) {
    t_end = wall_time();
 #endif
 
+   unsigned int check_ok = TRUE;
    if (check) {
-      check_ok = TRUE;
       printf( "=================== CHECKING ===================== \n" );
-      for (unsigned int i = 0; i < m2size; i += b2size) {
-         checkBlock(&c[i], VAL_A*VAL_B*msize + VAL_C, threshold);
+      for (unsigned int i = 0; i < msize/bsize && check_ok; i++) {
+         for (unsigned int j = 0; j < msize/bsize && check_ok; j++) {
+            elem_t val = VAL_C;
+            for (unsigned int k = 0; k < msize/bsize; k++) {
+               unsigned int const ai = k*b2size + i*bsize*msize;
+               unsigned int const bi = j*b2size + k*bsize*msize;
+               val += a[ai]*b[bi]*bsize;
+            }
+            unsigned int const ci = j*b2size + i*bsize*msize;
+            checkBlock(b2size, &check_ok, &c[ci], val, threshold);
+         }
       }
    }
 
