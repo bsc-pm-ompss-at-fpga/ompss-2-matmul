@@ -188,7 +188,6 @@ int main(int argc, char** argv) {
             unsigned int const bi = j*b2size + k*BSIZE*msize;
             matmulBlock(&a[ai], &b[bi], &c[ci]);
          }
-         #pragma omp taskwait
       }
       #pragma omp taskwait
 }
