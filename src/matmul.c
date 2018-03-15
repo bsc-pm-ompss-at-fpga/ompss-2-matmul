@@ -76,20 +76,17 @@ void checkBlock (unsigned int * check_ok, elem_t* v, const elem_t val, const flo
 #endif //defined(USE_DMA_MEM)
 void matmulBlock(elem_t *a, elem_t *b, elem_t *c) {
    unsigned int i, j, k;
-   elem_t (*aa)[BSIZE] = (elem_t(*)[BSIZE])(a);
-   elem_t (*bb)[BSIZE] = (elem_t(*)[BSIZE])(b);
-   elem_t (*cc)[BSIZE] = (elem_t(*)[BSIZE])(c);
 
-#pragma HLS array_partition variable=aa block factor=BSIZE/2 dim=2
-#pragma HLS array_partition variable=bb block factor=BSIZE/2 dim=1
+#pragma HLS array_partition variable=a cyclic factor=BSIZE/2
+#pragma HLS array_partition variable=b block factor=BSIZE/2
    for (i = 0; i < BSIZE; i++) {
       for (j = 0; j < BSIZE; j++) {
 #pragma HLS pipeline II=1
-         elem_t sum = cc[i][j];
+         elem_t sum = c[i*BSIZE + j];
          for (k = 0; k < BSIZE; k++) {
-            sum += aa[i][k] * bb[k][j];
+            sum += a[i*BSIZE + k] * b[k*BSIZE + j];
          }
-         cc[i][j] = sum;
+         c[i*BSIZE + j] = sum;
       }
    }
 }
