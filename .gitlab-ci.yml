@@ -1,7 +1,7 @@
 image: bscpm/ompss-ci
 job:
     except:
-        - fpga
+        - /^fpga.*/
     script: |
         make
         ./matmul-d 32 8 1
