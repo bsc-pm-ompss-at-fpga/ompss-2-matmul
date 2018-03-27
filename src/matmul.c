@@ -28,7 +28,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+// General definitions
 #include "matmul.h"
+// General definitions which are required to build the FPGA accelerators
+#include "matmul.fpga.h"
 
 #if defined(TIMING_ALL)
 #  if defined(USE_DMA_MEM)

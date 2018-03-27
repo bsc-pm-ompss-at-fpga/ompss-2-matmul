@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017, BSC (Barcelona Supercomputing Center)
+* Copyright (c) 2018, BSC (Barcelona Supercomputing Center)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -25,47 +25,19 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef _MATMUL_H_
-#define _MATMUL_H_
-
-#include <stdio.h>
-#include <sys/time.h>
-#include <time.h>
-#include "matmul.fpga.h"
-
-#ifdef USE_MKL
-#  include <mkl.h>
-#elif USE_OPENBLAS
-#  include <cblas.h>
-#endif
-
-#define FALSE (0)
-#define TRUE (1)
-#define VAL_A 587
-#define VAL_B 437
-#define VAL_C 0
+#ifndef _MATMUL_FPGA_H_
+#define _MATMUL_FPGA_H_
 
 // Global variables
-const float THRESHOLD = 1e-4;
+const unsigned int BSIZE = 128;
 
-// MKL/OpenBLAS interface
+// Elements type
 #if defined(USE_DOUBLE)
-#  define  GEMM       DGEMM
-#  define  cblas_gemm cblas_dgemm
+   typedef double     elem_t;
+#  define  ELEM_T_STR "double"
 #else
-#  define  GEMM       SGEMM
-#  define  cblas_gemm cblas_sgemm
+   typedef float      elem_t;
+#  define  ELEM_T_STR "float"
 #endif /* defined(USE_FLOAT) */
 
-void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> [<check>]\n", argv0);
-   fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
-}
-
-double wall_time () {
-   struct timespec ts;
-   clock_gettime(CLOCK_MONOTONIC,&ts);
-   return (double) (ts.tv_sec) + (double) ts.tv_nsec * 1.0e-9;
-}
-
-#endif /* _MATMUL_H_ */
+#endif /* _MATMUL_FPGA_H_ */
