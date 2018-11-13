@@ -30,7 +30,6 @@ The supported ones are:
     - `-DUSE_DOUBLE`. The matix elements are of type `double` instead of `float`.
     - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing summary will contain the time spent in both steps.
     - `-DUSE_IMPLEMENTS`. Enable the implements feature. This will cause the matmulBlock function have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
-    - `-DUSE_DMA_MEM`. Allocate the blocked matrices in kernel memory instead of user-space memory.
   - `LDFLAGS`
   - `MCC`. If not defined, the default value is: `mcc`. However, for SMP machines we recommend the use of `smpcc`.
   - `CROSS_COMPILE`

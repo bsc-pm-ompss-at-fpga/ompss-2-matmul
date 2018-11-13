@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017, BSC (Barcelona Supercomputing Center)
+* Copyright (c) 2017-2018, BSC (Barcelona Supercomputing Center)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,8 @@
 #include "matmul.fpga.h"
 
 #if defined(TIMING_ALL)
-#  if defined(USE_DMA_MEM)
-#    pragma omp task device(smp) no_copy_deps
-#    pragma omp task out([BSIZE*BSIZE]v)
-#  else
-#    pragma omp task device(smp) copy_deps
-#    pragma omp task out([BSIZE*BSIZE]v)
-#  endif //defined(USE_DMA_MEM)
+#  pragma omp task device(smp) copy_deps
+#  pragma omp task out([BSIZE*BSIZE]v)
 #endif
 void setBlock (elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
@@ -49,13 +44,8 @@ void setBlock (elem_t* v, const elem_t val) {
 }
 
 #if defined(TIMING_ALL)
-#  if defined(USE_DMA_MEM)
-#    pragma omp task device(smp) no_copy_deps
-#    pragma omp task in([BSIZE*BSIZE]v)
-#  else
-#    pragma omp task device(smp) copy_deps
-#    pragma omp task in([BSIZE*BSIZE]v)
-#  endif //defined(USE_DMA_MEM)
+#  pragma omp task device(smp) copy_deps
+#  pragma omp task in([BSIZE*BSIZE]v)
 #endif
 void checkBlock (unsigned int * check_ok, elem_t* v, const elem_t val, const float threshold )
 {
@@ -70,13 +60,8 @@ void checkBlock (unsigned int * check_ok, elem_t* v, const elem_t val, const flo
    }
 }
 
-#if defined(USE_DMA_MEM)
-#  pragma omp target device(fpga) no_copy_deps onto(0) num_instances(1)
-#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-#else
-#  pragma omp target device(fpga) copy_deps onto(0) num_instances(1)
-#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-#endif //defined(USE_DMA_MEM)
+#pragma omp target device(fpga) copy_deps num_instances(1)
+#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlock(elem_t *a, elem_t *b, elem_t *c) {
    unsigned int i, j, k;
 
@@ -95,14 +80,9 @@ void matmulBlock(elem_t *a, elem_t *b, elem_t *c) {
 }
 
 #if defined(USE_IMPLEMENTS)
-#  if defined(USE_DMA_MEM)
-#    pragma omp target device(smp) no_copy_deps implements(matmulBlock)
-#    pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-#  else
-//#    pragma omp target device(smp) copy_deps implements(matmulBlock)
-#    pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE*BSIZE]c)
-#    pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-#  endif //defined(USE_DMA_MEM)
+//#  pragma omp target device(smp) copy_deps implements(matmulBlock)
+#  pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE*BSIZE]c)
+#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 #if defined(USE_MKL)
    elem_t const alpha = 1.0;
@@ -147,15 +127,9 @@ int main(int argc, char** argv) {
    }
 
    size_t s = m2size*sizeof(elem_t);
-#if defined(USE_DMA_MEM)
-   elem_t* a = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
-   elem_t* b = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
-   elem_t* c = (elem_t *)(nanos_fpga_alloc_dma_mem(s));
-#else
    elem_t* a = (elem_t *)(malloc(s));
    elem_t* b = (elem_t *)(malloc(s));
    elem_t* c = (elem_t *)(malloc(s));
-#endif //defined(USE_DMA_MEM)
    if (a == NULL || b == NULL || c == NULL) {
       fprintf(stderr, "ERROR:\tCannot allocate memory for the matrices\n");
       exit(1);
@@ -227,15 +201,9 @@ int main(int argc, char** argv) {
       printf( "================================================== \n" );
    }
 
-#if defined(USE_DMA_MEM)
-   nanos_fpga_free_dma_mem(a);
-   nanos_fpga_free_dma_mem(b);
-   nanos_fpga_free_dma_mem(c);
-#else
    free(a);
    free(b);
    free(c);
-#endif //defined(USE_DMA_MEM)
 
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
@@ -248,7 +216,3 @@ int main(int argc, char** argv) {
    printf( "================================================== \n" );
 
 }
-
-#if defined(USE_DMA_MEM) && defined(USE_IMPLEMENTS)
-#  warning Using DMA memory (-DUSE_DMA_MEM) when using the implements option  (-DUSE_IMPLEMENTS). The performance of SMP tasks may be wery poor.
-#endif //defined(USE_DMA_MEM) && defined(USE_IMPLEMENTS)
