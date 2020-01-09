@@ -43,7 +43,7 @@ endif
 ##CFLAGS += -DUSE_DOUBLE
 ##CFLAGS += -DUSE_IMPLEMENTS
 CFLAGS_ += -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS)
-FPGA_LINKER_FLAGS =--Wf,"--board=$(BOARD),-c=$(FPGA_CLOCK),--task_manager,--interconnection_opt=performance"
+FPGA_LINKER_FLAGS =--Wf,"--board=$(BOARD),-c=$(FPGA_CLOCK),--hw_runtime=som,--interconnection_opt=performance"
 
 all: help
 help:
