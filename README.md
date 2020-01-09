@@ -1,4 +1,4 @@
-# Matmul
+# Matmul (FPGA devices version)
 
 **Name**: Matrix Multiplication Kernel  
 **Contact Person**: PM Group, pm-tools@bsc.es  
@@ -27,26 +27,30 @@ make
 You can change the build process defining or modifying some environment variables.
 The supported ones are:
   - `CFLAGS`. Compiler flags. The following preprocessor variables can be defined to modify the application:
-    - `-DUSE_DOUBLE`. The matix elements are of type `double` instead of `float`.
-    - `-DTIMING_ALL`. The matrices initialization and the result checking are done using tasks. The timing summary will contain the time spent in both steps.
-    - `-DUSE_IMPLEMENTS`. Enable the implements feature. This will cause the matmulBlock function have two targets: FPGA and SMP (implemented using OPENBLAS, MKL or basic C code).
+    - `-DUSE_DOUBLE`. The matrix elements are of type `double` instead of `float`.
+    - `-DUSE_IMPLEMENTS`. Enable the implements feature. Then, matmulBlock function will have two targets: FPGA and SMP (implemented using OPENBLAS, MKL, or basic C code).
   - `LDFLAGS`
-  - `MCC`. If not defined, the default value is: `mcc`. However, for SMP machines we recommend the use of `smpcc`.
+  - `MCC`. If not defined, the default value is: `fpgacc`.
   - `CROSS_COMPILE`
-  - `MKL_DIR`. Installation directory of MKL library. The default value is: `$MKLROOT`.
+  - `MKL_DIR`. Installation directory of MKL library (only used for the implements feature). The default value is: `$MKLROOT`.
     - `MKL_INC_DIR`. Installation directory of includes for MKL library. The default value is: `$MKL_DIR/include`.
     - `MKL_LIB_DIR`. Installation directory of OS libraries for MKL library. The default value is: `$MKL_DIR/lib`.
-  - `OPENBLAS_DIR`. Installation directory of OpenBLAS library. The default value is: `$OPENBLAS_HOME`.
+  - `OPENBLAS_DIR`. Installation directory of OpenBLAS library (only used for the implements feature). The default value is: `$OPENBLAS_HOME`.
     - `OPENBLAS_INC_DIR`. Installation directory of includes for OpenBLAS library. The default value is: `$OPENBLAS_DIR/include`.
     - `OPENBLAS_LIB_DIR`. Installation directory of OS libraries for OpenBLAS library. The default value is: `$OPENBLAS_DIR/lib`.
+  - `BOARD`. Board option used when generating the bitstreams.
+  - `FPGA_CLOCK`. Target frequency of FPGA accelerators in the bitstreams. The default value is: `300`.
+  - `FPGA_MEMORY_PORT_WIDTH`. Bit-width of accelerators memory port to access main memory. The default value is: `128`.
+  - `MATMUL_BLOCK_SIZE`. Dimension of matrix blocks that FPGA accelerators deal with. The default value is: `256`.
+  - `MATMUL_NUM_ACCS`. Number of FPGA accelerators for matmulBlock task. The default value is: `1`.
+  - `MATMUL_BLOCK_II`. Initiation interval, in cycles, for matmulBlock middle loop. The default value is: `2`.
 
 To check the correct support detection of backend libraries, you can use the `make info` target once the environment variables are properly set.
 
-For example, the build step to cross-compile the application for ARM using the `smpcc` profile may be:
+For example, the build step to cross-compile the application for ARM may be:
 ```
-export MCC=smpcc
 export CROSS_COMPILE=arm-linux-gnueabihf-
-make
+make matmul-d bitstream-p
 ```
 
 ### Run instructions
@@ -57,9 +61,10 @@ The name of each binary file created by build step ends with a suffix which dete
 
 All versions use the same arguments structure:
 ```
-./sparselu <matrix size> <block size> [<check>]
+./matmul-p <matrix size> [<check>]
 ```
 where:
- - `matrix size` is the dimension of the matrices. (Mandatory)
- - `block size` is the dimension of the matrices sub-blocks. (Mandatory)
- - `check` defines if the result must be checked. (Optional)
+ - `matrix size` (Mandatory) is the dimension of the matrices.
+ - `check` (Optional) defines if the result must be checked.
+   The result is checked agains a reference solution file which must be available inside the `ref` folder.
+   To generate those files, you can run the application using the value `2` of check argument.

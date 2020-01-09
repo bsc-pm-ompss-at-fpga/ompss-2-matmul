@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017-2018, BSC (Barcelona Supercomputing Center)
+* Copyright (c) 2020, BSC (Barcelona Supercomputing Center)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
-#include "matmul.fpga.h"
 
 #ifdef USE_MKL
 #  include <mkl.h>
@@ -39,14 +38,34 @@
 #  include <cblas.h>
 #endif
 
-#define FALSE (0)
-#define TRUE (1)
-#define VAL_A 587
-#define VAL_B 437
-#define VAL_C 0
+#ifndef RUNTIME_MODE
+#  define RUNTIME_MODE "unknown"
+#endif
+#ifndef MATMUL_BLOCK_SIZE
+#  error MATMUL_BLOCK_SIZE variable not defined
+#endif
+#ifndef MATMUL_BLOCK_II
+#  error MATMUL_BLOCK_II variable not defined
+#endif
+#ifndef MATMUL_NUM_ACCS
+#  error MATMUL_NUM_ACCS variable not defined
+#endif
 
 // Global variables
 const float THRESHOLD = 1e-4;
+const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
+#pragma omp target device(fpga)
+const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
+const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
+
+// Elements type
+#if defined(USE_DOUBLE)
+   typedef double     elem_t;
+#  define  ELEM_T_STR "double"
+#else
+   typedef float      elem_t;
+#  define  ELEM_T_STR "float"
+#endif /* defined(USE_FLOAT) */
 
 // MKL/OpenBLAS interface
 #if defined(USE_DOUBLE)
@@ -58,8 +77,12 @@ const float THRESHOLD = 1e-4;
 #endif /* defined(USE_FLOAT) */
 
 void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> [<check>]\n", argv0);
+   fprintf(stderr, "USAGE:\t%s <matrix size> <check>\n", argv0);
    fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
+   fprintf(stderr, "      \t<check> values:\n");
+   fprintf(stderr, "      \t  - 0 to disable checking\n");
+   fprintf(stderr, "      \t  - 1 to enable checking\n");
+   fprintf(stderr, "      \t  - 2 to generate checking reference\n");
 }
 
 double wall_time () {
