@@ -2,3 +2,6 @@
 *_matmul.c
 matmul
 matmul-*
+*.ref
+ref
+*_autoVivado

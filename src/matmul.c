@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017-2018, BSC (Barcelona Supercomputing Center)
+* Copyright (c) 2020, BSC (Barcelona Supercomputing Center)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -27,62 +27,118 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 // General definitions
 #include "matmul.h"
-// General definitions which are required to build the FPGA accelerators
-#include "matmul.fpga.h"
 
-#if defined(TIMING_ALL)
-#  pragma omp task device(smp) copy_deps
-#  pragma omp task out([BSIZE*BSIZE]v)
-#endif
-void setBlock (elem_t* v, const elem_t val) {
+#pragma omp task
+void setBlock(elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
       v[i] = val;
    }
 }
 
-#if defined(TIMING_ALL)
-#  pragma omp task device(smp) copy_deps
-#  pragma omp task in([BSIZE*BSIZE]v)
-#endif
-void checkBlock (unsigned int * check_ok, elem_t* v, const elem_t val, const float threshold )
+#pragma omp task
+void setBlockSeq(elem_t* v, int base) {
+   for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
+      v[i] = ((elem_t)((base/1024)%2)) - 1.0 + ((elem_t)(base%512))/1000;
+      base = (base*97 + 89)%65536;
+   }
+}
+
+#pragma omp task
+void checkBlock(unsigned int* check_ok, const elem_t* res, const elem_t* ref, const float threshold)
 {
-   const elem_t maxv = val * (1.0 + (val < 0 ? -threshold : threshold));
-   const elem_t minv = val * (1.0 - (val < 0 ? -threshold : threshold));
    for (unsigned int i = 0; i < BSIZE*BSIZE && ( *check_ok ); ++i) {
-      elem_t tmp = v[i];
-      if (tmp > maxv || tmp < minv) {
-         *check_ok = FALSE;
-         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.\n", (double)val, (double)tmp);
+      const elem_t res_val = res[i];
+      const elem_t ref_val = ref[i];
+      const elem_t maxv = ref_val * (1.0 + (ref_val < 0 ? -threshold : threshold));
+      const elem_t minv = ref_val * (1.0 - (ref_val < 0 ? -threshold : threshold));
+      if (res_val > maxv || res_val < minv) {
+         *check_ok = 0;
+         fprintf(stderr, "ERROR:\t Expected a %lf but found %lf.\n", (double)ref_val, (double)res_val);
       }
    }
 }
 
-#pragma omp target device(fpga) copy_deps num_instances(1)
-#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-void matmulBlock(elem_t *a, elem_t *b, elem_t *c) {
-   unsigned int i, j, k;
+unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsigned int msize)
+{
+   const unsigned int m2size = msize*msize;
+   const unsigned int b2size = BSIZE*BSIZE;
+   unsigned int check_ok = 1;
 
-#pragma HLS array_partition variable=a cyclic factor=BSIZE/2
-#pragma HLS array_partition variable=b block factor=BSIZE/2
-   for (i = 0; i < BSIZE; i++) {
-      for (j = 0; j < BSIZE; j++) {
-#pragma HLS pipeline II=1
-         elem_t sum = c[i*BSIZE + j];
-         for (k = 0; k < BSIZE; k++) {
-            sum += a[i*BSIZE + k] * b[k*BSIZE + j];
+   if (check == 1) {
+      //Check the result matrix against the reference solution
+      printf( "=================== CHECKING ===================== \n" );
+      char ref_filename[64];
+      sprintf(ref_filename, "ref/matmul_%s_%u_%u_%u.ref", ELEM_T_STR, msize, BSIZE, 2 /*numReps*/);
+      int ref_file = open(ref_filename, O_RDONLY);
+      if (ref_file == -1) {
+         fprintf(stderr, "Cannot open '%s' as a reference solution\n", ref_filename);
+         check_ok = 0;
+      } else {
+         const elem_t* c_ref = (const elem_t *)mmap(NULL, m2size*sizeof(elem_t), PROT_READ, MAP_SHARED, ref_file, 0);
+         if (c_ref == (const elem_t *)-1) {
+            fprintf(stderr, "Cannot map '%s' as a reference solution\n", ref_filename);
+            check_ok = 0;
+         } else {
+            for (unsigned int i = 0; i < msize/BSIZE && check_ok; i++) {
+               for (unsigned int j = 0; j < msize/BSIZE && check_ok; j++) {
+                  unsigned int const ci = j*b2size + i*BSIZE*msize;
+                  checkBlock(&check_ok, &c[ci], &c_ref[ci], THRESHOLD);
+               }
+            }
+            #pragma omp taskwait
+            munmap((void *)c_ref, m2size*sizeof(elem_t));
+            close(ref_file);
          }
-         c[i*BSIZE + j] = sum;
+      }
+      printf( "Output matrix is %s!\n", (check_ok ? "OK" : "WRONG") );
+      printf( "================================================== \n" );
+   } else if (check == 2) {
+     //Write the reference file
+      printf( "============= GENERATING REFERENCE =============== \n" );
+      char ref_filename[64];
+      sprintf(ref_filename, "matmul_%s_%u_%u_%u.ref", ELEM_T_STR, msize, BSIZE, 2 /*numReps*/);
+      FILE *ref_file = fopen(ref_filename, "w+");
+      if (fwrite(c, sizeof(elem_t), m2size, ref_file) != m2size) {
+         fprintf(stderr, "Error writing reference file\n");
+         check_ok = 0;
+      }
+      fclose(ref_file);
+      printf( "Output wrote to '%s'\n", ref_filename );
+      printf( "Move the file inside the 'ref' folder to use it as a reference\n" );
+      printf( "================================================== \n" );
+   }
+   return check_ok;
+}
+
+#pragma omp target device(fpga) num_instances(1)
+#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
+void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
+{
+   #pragma HLS INLINE // off
+   #pragma HLS array_partition variable=a cyclic factor=4
+   #pragma HLS array_partition variable=b cyclic factor=BSIZE/4
+   #pragma HLS array_partition variable=c cyclic factor=BSIZE/2
+
+   for (int k = 0; k < BSIZE; ++k) {
+      for (int i = 0; i < BSIZE; ++i) {
+         #pragma HLS pipeline II=MBLOCK_II
+         for (int j = 0; j < BSIZE; ++j) {
+            c[i*BSIZE + j] += a[i*BSIZE + k] * b[k*BSIZE + j];
+         }
       }
    }
 }
 
 #if defined(USE_IMPLEMENTS)
-//#  pragma omp target device(smp) copy_deps implements(matmulBlock)
-#  pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE*BSIZE]c)
-#  pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
+//#pragma omp target device(smp) copy_deps implements(matmulBlock)
+#pragma omp target device(smp) no_copy_deps implements(matmulBlock) copy_inout([BSIZE*BSIZE]c)
+#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 #if defined(USE_MKL)
    elem_t const alpha = 1.0;
@@ -108,10 +164,24 @@ void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
    }
 #endif
 }
-#endif
+#endif // defined(USE_IMPLEMENTS)
+
+void matmul(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
+   const unsigned int b2size = BSIZE*BSIZE;
+   for (unsigned int i = 0; i < msize/BSIZE; i++) {
+      for (unsigned int k = 0; k < msize/BSIZE; k++) {
+         unsigned int const ai = k*b2size + i*BSIZE*msize;
+         for (unsigned int j = 0; j < msize/BSIZE; j++) {
+            unsigned int const bi = j*b2size + k*BSIZE*msize;
+            unsigned int const ci = j*b2size + i*BSIZE*msize;
+            matmulBlock(a + ai, b + bi, c + ci);
+         }
+      }
+   }
+}
 
 int main(int argc, char** argv) {
-   if (argc < 2) {
+   if (argc < 2 || argc > 3) {
       usage(argv[0]);
       exit(1);
    }
@@ -126,7 +196,7 @@ int main(int argc, char** argv) {
       exit(1);
    }
 
-   size_t s = m2size*sizeof(elem_t);
+   unsigned int s = m2size*sizeof(elem_t);
    elem_t* a = (elem_t *)(malloc(s));
    elem_t* b = (elem_t *)(malloc(s));
    elem_t* c = (elem_t *)(malloc(s));
@@ -135,84 +205,59 @@ int main(int argc, char** argv) {
       exit(1);
    }
 
-#if defined(TIMING_ALL)
-   double t_ini_start = wall_time();
-#endif
+   double tIniStart = wall_time();
 
+   srand(2019);
    for (unsigned int i = 0; i < m2size/b2size; i++) {
-      setBlock(&a[i*b2size], (elem_t)VAL_A + i);
-      setBlock(&b[i*b2size], (elem_t)VAL_B - i);
-      setBlock(&c[i*b2size], (elem_t)VAL_C);
-   }
-
-#if defined(TIMING_ALL)
-   #pragma omp taskwait
-#endif
-   double t_start = wall_time();
-
-   for (unsigned int i = 0; i < msize/BSIZE; i++) {
-//NOTE: Assuming that the following task will be executed in a shared memory environment.
-//      Otherwise, it must define the input and output data of child tasks.
-#pragma omp task firstprivate(i)
-{
-      for (unsigned int j = 0; j < msize/BSIZE; j++) {
-         unsigned int const ci = j*b2size + i*BSIZE*msize;
-         for (unsigned int k = 0; k < msize/BSIZE; k++) {
-            unsigned int const ai = k*b2size + i*BSIZE*msize;
-            unsigned int const bi = j*b2size + k*BSIZE*msize;
-            matmulBlock(&a[ai], &b[bi], &c[ci]);
-         }
-      }
-      #pragma omp taskwait
-}
+      setBlockSeq(&a[i*b2size], rand());
+      setBlockSeq(&b[i*b2size], rand());
+      setBlock(&c[i*b2size], 0);
    }
 
    #pragma omp taskwait
-   double t_end = wall_time();
+   const double tEndStart = wall_time();
+   const double tIniWarm = tEndStart;
 
-   unsigned int check_ok = TRUE;
-   if (check) {
-      printf( "=================== CHECKING ===================== \n" );
-      for (unsigned int i = 0; i < msize/BSIZE && check_ok; i++) {
-         for (unsigned int j = 0; j < msize/BSIZE && check_ok; j++) {
-            elem_t val = VAL_C;
-            for (unsigned int k = 0; k < msize/BSIZE; k++) {
-               unsigned int const ai = k*b2size + i*BSIZE*msize;
-               unsigned int const bi = j*b2size + k*BSIZE*msize;
-               val += a[ai]*b[bi]*BSIZE;
-            }
-            unsigned int const ci = j*b2size + i*BSIZE*msize;
-            checkBlock(&check_ok, &c[ci], val, THRESHOLD);
-         }
-      }
-   }
+   //Warm up execution
+   matmul(a, b, c, msize);
 
-#if defined(TIMING_ALL)
+   #pragma omp taskwait noflush
+   const double tEndWarm = wall_time();
+   const double tIniExec = tEndWarm;
+
+   //Performance execution
+   matmul(a, b, c, msize);
+
+   #pragma omp taskwait noflush
+   const double tEndExec = wall_time();
+   const double tIniFlush = tEndExec;
+
+   //The following TW will copy out the data moved to FPGA devices
    #pragma omp taskwait
-   double t_check_end = wall_time();
-#endif
+   const double tEndFlush = wall_time();
+   const double tIniCheck = tEndFlush;
 
-   if (check) {
-      if (check_ok) {
-         printf( "Output matrix is OK!\n" );
-      } else {
-         printf( "Output matrix is Wrong!\n" );
-      }
-      printf( "================================================== \n" );
-   }
+   //Check the output matrix
+   unsigned int check_ok = matmulCheck(check, c, msize);
+
+   const double tEndCheck = wall_time();
 
    free(a);
    free(b);
    free(c);
 
+   //Print the execution report
+   const float gflops = m2size/1000.0*msize/1000.0*2.0/1000.0/(tEndExec - tIniExec);
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
    printf( "  Elements type: %s\n", ELEM_T_STR );
-   printf( "  Execution time (secs): %f\n", t_end - t_start );
-#if defined(TIMING_ALL)
-   printf( "  Initialization time (secs): %f\n", t_start - t_ini_start );
-   printf( "  Checking time (secs): %f\n", t_check_end - t_end );
-#endif //defined(TIMING_ALL)
+   printf( "  Init. time (secs):     %f\n", tEndStart  - tIniStart );
+   printf( "  Warm up time (secs):   %f\n", tEndWarm   - tIniWarm );
+   printf( "  Execution time (secs): %f\n", tEndExec    - tIniExec );
+   printf( "  Flush time (secs):     %f\n", tEndFlush  - tIniFlush );
+   printf( "  Checking time (secs):  %f\n", tEndCheck  - tIniCheck );
+   printf( "  Performance (GFLOPS):  %f\n", gflops );
    printf( "================================================== \n" );
 
+   return check_ok ? 0 : 1;
 }
