@@ -50,12 +50,17 @@
 #ifndef MATMUL_NUM_ACCS
 #  error MATMUL_NUM_ACCS variable not defined
 #endif
+#ifndef FPGA_MEMORY_PORT_WIDTH
+#  error FPGA_MEMORY_PORT_WIDTH variable not defined
+#endif
 
 // Global variables
 const float THRESHOLD = 1e-4;
 const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
 #pragma omp target device(fpga)
 const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
+#pragma omp target device(fpga)
+const unsigned int MBLOCK_FPGA_PWIDTH = FPGA_MEMORY_PORT_WIDTH;
 const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
 
 // Elements type
