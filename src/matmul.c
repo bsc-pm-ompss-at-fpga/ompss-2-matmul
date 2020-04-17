@@ -121,9 +121,9 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
 void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
 {
    #pragma HLS INLINE // off
-   #pragma HLS array_partition variable=a cyclic factor=4
-   #pragma HLS array_partition variable=b cyclic factor=BSIZE/4
-   #pragma HLS array_partition variable=c cyclic factor=BSIZE/2
+   #pragma HLS array_partition variable=a cyclic factor=MBLOCK_FPGA_PWIDTH/64
+   #pragma HLS array_partition variable=b cyclic factor=BSIZE/(MBLOCK_II*2)
+   #pragma HLS array_partition variable=c cyclic factor=BSIZE/MBLOCK_II
 
    for (int k = 0; k < BSIZE; ++k) {
       for (int i = 0; i < BSIZE; ++i) {

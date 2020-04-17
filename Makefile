@@ -1,16 +1,16 @@
 PROGRAM_     = matmul
 
+MCC         ?= fpgacc
+MCC_         = $(CROSS_COMPILE)$(MCC)
+GCC_         = $(CROSS_COMPILE)gcc
 CFLAGS_      = $(CFLAGS) -O3 -std=gnu99
-MCC_FLAGS_   = --ompss --variable=disable_final_clause_transformation:1
+MCC_FLAGS_   = --ompss
 MCC_FLAGS_I_ = --instrument
 MCC_FLAGS_D_ = --debug -g -k
 LDFLAGS_     = $(LDFLAGS)
 
-MCC         ?= fpgacc
-MCC_         = $(CROSS_COMPILE)$(MCC)
-GCC_         = $(CROSS_COMPILE)gcc
-
 # FPGA bitstream Variables
+FPGA_HWRUNTIME         ?= som
 FPGA_CLOCK             ?= 300
 FPGA_MEMORY_PORT_WIDTH ?= 128
 MATMUL_BLOCK_SIZE      ?= 256
@@ -42,16 +42,16 @@ endif
 
 ##CFLAGS += -DUSE_DOUBLE
 ##CFLAGS += -DUSE_IMPLEMENTS
-CFLAGS_ += -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS)
-FPGA_LINKER_FLAGS =--Wf,"--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hw_runtime=som,--interconnection_opt=performance"
+CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS)
+FPGA_LINKER_FLAGS_ =--Wf,"--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME),--interconnection_opt=performance"
 
 all: help
 help:
-	@echo 'Supported targets:       $(PROGRAM_)-p $(PROGRAM_)-i $(PROGRAM_)-d $(PROGRAM_)-seq bitsteam-i bitstream-p clean info help'
+	@echo 'Supported targets:       $(PROGRAM_)-p $(PROGRAM_)-i $(PROGRAM_)-d $(PROGRAM_)-seq bitstream-i bitstream-p clean info help'
 	@echo 'Environment variables:   CFLAGS, LDFLAGS, CROSS_COMPILE, MCC'
 	@echo 'MKL env. variables:      MKLROOT, MKL_DIR, MKL_INC_DIR, MKL_LIB_DIR'
 	@echo 'OpenBLAS env. variables: OPENBLAS_HOME, OPENBLAS_DIR, OPENBLAS_INC_DIR, OPENBLAS_LIB_DIR'
-	@echo 'FPGA env. variables:     BOARD, FPGA_CLOCK, FPGA_MEMORY_PORT_WIDTH, MATMUL_BLOCK_SIZE, MATMUL_BLOCK_II, MATMUL_NUM_ACCS'
+	@echo 'FPGA env. variables:     BOARD, FPGA_HWRUNTIME, FPGA_CLOCK, FPGA_MEMORY_PORT_WIDTH, MATMUL_BLOCK_SIZE, MATMUL_BLOCK_II, MATMUL_NUM_ACCS'
 
 $(PROGRAM_)-p: ./src/$(PROGRAM_).c
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $^ -o $@ $(LDFLAGS_)
@@ -68,13 +68,13 @@ $(PROGRAM_)-seq: ./src/$(PROGRAM_).c
 bitstream-i: ./src/$(PROGRAM_).c
 	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) $^ -o $(PROGRAM_)-i $(LDFLAGS_) \
-	--bitstream-generation $(FPGA_LINKER_FLAGS) \
+	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 
 bitstream-p: ./src/$(PROGRAM_).c
 	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $^ -o $(PROGRAM_)-p $(LDFLAGS_) \
-	--bitstream-generation $(FPGA_LINKER_FLAGS) \
+	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 
 info:
