@@ -11,9 +11,9 @@ LDFLAGS_     = $(LDFLAGS)
 
 # FPGA bitstream Variables
 FPGA_HWRUNTIME         ?= som
-FPGA_CLOCK             ?= 300
+FPGA_CLOCK             ?= 200
 FPGA_MEMORY_PORT_WIDTH ?= 128
-MATMUL_BLOCK_SIZE      ?= 256
+MATMUL_BLOCK_SIZE      ?= 64
 MATMUL_BLOCK_II        ?= 2
 MATMUL_NUM_ACCS        ?= 1
 
@@ -40,10 +40,25 @@ else ifeq ($(OPENBLAS_SUPPORT_),YES)
 	LDFLAGS_ += -L$(OPENBLAS_LIB_DIR) -lopenblas
 endif
 
+ifdef USE_URAM
+	CFLAGS += -DUSE_URAM
+endif
+
+ifdef INTERCONNECT_REGSLICE
+	FPGA_LINKER_FLAGS_ = --Wf,--interconnect_regslice,$(INTERCONNECT_REGSLICE)
+endif
+
 ##CFLAGS += -DUSE_DOUBLE
 ##CFLAGS += -DUSE_IMPLEMENTS
-CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS)
-FPGA_LINKER_FLAGS_ =--Wf,"--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME),--interconnection_opt=performance"
+CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_HWRUNTIME=\"$(FPGA_HWRUNTIME)\"
+FPGA_LINKER_FLAGS_ =--Wf,--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME),--interconnect_opt=performance
+
+ifeq ($(FPGA_HWRUNTIME),som)
+	## Ignore the deps when spawning tasks inside the FPGA (only with SOM)
+	FPGA_LINKER_FLAGS_ += --variable=fpga_ignore_deps_task_spawn:1
+elif ($(FPGA_HWRUNTIME),pom)
+	FPGA_LINKER_FLAGS_ += --Wf,--picos_max_deps_per_task=2,--picos_max_args_per_task=3,--picos_max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=40,--picos_vm_size=40
+endif
 
 all: help
 help:
@@ -53,27 +68,27 @@ help:
 	@echo 'OpenBLAS env. variables: OPENBLAS_HOME, OPENBLAS_DIR, OPENBLAS_INC_DIR, OPENBLAS_LIB_DIR'
 	@echo 'FPGA env. variables:     BOARD, FPGA_HWRUNTIME, FPGA_CLOCK, FPGA_MEMORY_PORT_WIDTH, MATMUL_BLOCK_SIZE, MATMUL_BLOCK_II, MATMUL_NUM_ACCS'
 
-$(PROGRAM_)-p: ./src/$(PROGRAM_).c
-	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $^ -o $@ $(LDFLAGS_)
+$(PROGRAM_)-p: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) -DRUNTIME_MODE=\"perf\" $^ -o $@ $(LDFLAGS_)
 
-$(PROGRAM_)-i:  ./src/$(PROGRAM_).c
-	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) $^ -o $@ $(LDFLAGS_)
+$(PROGRAM_)-i:  ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) -DRUNTIME_MODE=\"instr\" $^ -o $@ $(LDFLAGS_)
 
-$(PROGRAM_)-d:  ./src/$(PROGRAM_).c
-	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_D_) $^ -o $@ $(LDFLAGS_)
+$(PROGRAM_)-d:  ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_D_) -DRUNTIME_MODE=\"debug\" $^ -o $@ $(LDFLAGS_)
 
-$(PROGRAM_)-seq: ./src/$(PROGRAM_).c
-	$(GCC_) $(CFLAGS_) $^ -o $@ $(LDFLAGS_)
+$(PROGRAM_)-seq: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+	$(GCC_) $(CFLAGS_) -DRUNTIME_MODE=\"seq\" $^ -o $@ $(LDFLAGS_)
 
-bitstream-i: ./src/$(PROGRAM_).c
+bitstream-i: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
-	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) $^ -o $(PROGRAM_)-i $(LDFLAGS_) \
+	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) -DRUNTIME_MODE=\"instr\" $^ -o $(PROGRAM_)-i $(LDFLAGS_) \
 	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 
-bitstream-p: ./src/$(PROGRAM_).c
+bitstream-p: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
-	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $^ -o $(PROGRAM_)-p $(LDFLAGS_) \
+	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) -DRUNTIME_MODE=\"perf\" $^ -o $(PROGRAM_)-p $(LDFLAGS_) \
 	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 
@@ -96,4 +111,4 @@ info:
 	@echo "=============================="
 
 clean:
-	rm -fv *.o $(PROGRAM_)-? $(MCC_)_$(PROGRAM_).c *:*_hls_automatic_mcxx.cpp
+	rm -fv *.o $(PROGRAM_)-? $(MCC_)_$(PROGRAM_)*.c *:*_hls_automatic_mcxx.cpp

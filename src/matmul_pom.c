@@ -116,14 +116,18 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
    return check_ok;
 }
 
-#pragma omp target device(fpga) num_instances(1)
-#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
+#pragma omp target device(fpga) num_instances(1) no_copy_deps copy_in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) copy_inout([BSIZE*BSIZE]c)
+#pragma omp task inout([BSIZE*BSIZE]c)
 void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
 {
    #pragma HLS INLINE // off
    #pragma HLS array_partition variable=a cyclic factor=MBLOCK_FPGA_PWIDTH/64
    #pragma HLS array_partition variable=b cyclic factor=BSIZE/(MBLOCK_II*2)
    #pragma HLS array_partition variable=c cyclic factor=BSIZE/MBLOCK_II
+#ifdef USE_URAM
+   #pragma HLS RESOURCE variable=b core=XPM_MEMORY uram
+   #pragma HLS RESOURCE variable=a core=XPM_MEMORY uram
+#endif
 
    for (int k = 0; k < BSIZE; ++k) {
       for (int i = 0; i < BSIZE; ++i) {
@@ -166,7 +170,40 @@ void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 }
 #endif // defined(USE_IMPLEMENTS)
 
-void matmul(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
+#pragma omp target device(fpga) copy_in([msize*msize]a, [msize*msize]b) copy_inout([msize*msize]c)
+#pragma omp task
+void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
+   const unsigned int factor = MBLOCK_NUM_ACCS;
+   const unsigned int b2size = BSIZE*BSIZE;
+   const unsigned int num_blocks_side = msize/BSIZE;
+   const unsigned int num_blocks_matrix = msize*msize/b2size;
+   const unsigned int num_blocks_loop = num_blocks_matrix - num_blocks_matrix%factor;
+   for (unsigned int l = 0; l < num_blocks_loop; l+=factor) {
+      for (unsigned int k = 0; k < msize/BSIZE; k++) {
+         for (unsigned int ll = l; ll < (l+factor); ll++) {
+            const unsigned int i = ll/num_blocks_side;
+            const unsigned int j = ll%num_blocks_side;
+            const unsigned int ai = k*b2size + i*BSIZE*msize;
+            const unsigned int bi = j*b2size + k*BSIZE*msize;
+            const unsigned int ci = ll*b2size;
+            matmulBlock(a + ai, b + bi, c + ci);
+         }
+      }
+   }
+   for (unsigned int k = 0; k < msize/BSIZE; k++) {
+      for (unsigned int l = num_blocks_loop; l < num_blocks_matrix; l++) {
+         const unsigned int i = l/num_blocks_side;
+         const unsigned int j = l%num_blocks_side;
+         const unsigned int ai = k*b2size + i*BSIZE*msize;
+         const unsigned int bi = j*b2size + k*BSIZE*msize;
+         const unsigned int ci = l*b2size;
+         matmulBlock(a + ai, b + bi, c + ci);
+      }
+   }
+   #pragma omp taskwait
+}
+
+void matmulSMP(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
    const unsigned int b2size = BSIZE*BSIZE;
    for (unsigned int i = 0; i < msize/BSIZE; i++) {
       for (unsigned int k = 0; k < msize/BSIZE; k++) {
@@ -181,7 +218,7 @@ void matmul(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msiz
 }
 
 int main(int argc, char** argv) {
-   if (argc < 2 || argc > 3) {
+   if (argc != 4) {
       usage(argv[0]);
       exit(1);
    }
@@ -189,9 +226,15 @@ int main(int argc, char** argv) {
    unsigned int const b2size = BSIZE*BSIZE;
    unsigned int const msize = atoi(argv[1]);
    unsigned int const m2size = msize*msize;
-   unsigned char const check = argc > 2 ? atoi(argv[2]) : 1;
+   unsigned char const check = atoi(argv[2]);
+   unsigned char const createFrom = atoi(argv[3]);
+   char const * createFromStr = createFrom == 0 ? "cFPGA" : "cHOST";
    if (msize%BSIZE != 0) {
       fprintf(stderr, "ERROR:\t<matrix size> must be multiple of <block size>\n");
+      usage(argv[0]);
+      exit(1);
+   } else if (createFrom > 1) {
+      fprintf(stderr, "ERROR:\tUnsupported value in <create from>\n");
       usage(argv[0]);
       exit(1);
    }
@@ -219,14 +262,22 @@ int main(int argc, char** argv) {
    const double tIniWarm = tEndStart;
 
    //Warm up execution
-   matmul(a, b, c, msize);
+   if (createFrom == 0) {
+     matmulFPGA(a, b, c, msize);
+   } else if (createFrom == 1) {
+     matmulSMP(a, b, c, msize);
+   }
 
    #pragma omp taskwait noflush
    const double tEndWarm = wall_time();
    const double tIniExec = tEndWarm;
 
    //Performance execution
-   matmul(a, b, c, msize);
+   if (createFrom == 0) {
+     matmulFPGA(a, b, c, msize);
+   } else if (createFrom == 1) {
+     matmulSMP(a, b, c, msize);
+   }
 
    #pragma omp taskwait noflush
    const double tEndExec = wall_time();
@@ -251,6 +302,7 @@ int main(int argc, char** argv) {
    printf( "==================== RESULTS ===================== \n" );
    printf( "  Benchmark: %s (%s)\n", "Matmul", "OmpSs" );
    printf( "  Elements type: %s\n", ELEM_T_STR );
+   printf( "  Create from: %s\n", createFromStr );
    printf( "  Init. time (secs):     %f\n", tEndStart  - tIniStart );
    printf( "  Warm up time (secs):   %f\n", tEndWarm   - tIniWarm );
    printf( "  Execution time (secs): %f\n", tEndExec    - tIniExec );
@@ -258,6 +310,41 @@ int main(int argc, char** argv) {
    printf( "  Checking time (secs):  %f\n", tEndCheck  - tIniCheck );
    printf( "  Performance (GFLOPS):  %f\n", gflops );
    printf( "================================================== \n" );
+
+   //Create the JSON result file
+   FILE *res_file = fopen("test_result.json", "w+");
+   if (res_file == NULL) {
+      printf( "Cannot open 'test_result.json' file\n" );
+      exit(1);
+   }
+   fprintf(res_file,
+      "{ \
+         \"benchmark\": \"%s\", \
+         \"version\": \"%uaccs kij memport_128 noflush\", \
+         \"hwruntime\": \"%s\", \
+         \"pm\": \"%s_%s\", \
+         \"datatype\": \"%s\", \
+         \"argv\": \"%d %d %s\", \
+         \"exectime\": \"%f\", \
+         \"performance\": \"%f\", \
+         \"note\": \"init %f, warm %f, exec %f, flush %f, check %f\" \
+      }",
+      "matmul",
+      MBLOCK_NUM_ACCS,
+      FPGA_HWRUNTIME,
+      "ompss",
+      RUNTIME_MODE,
+      ELEM_T_STR,
+      msize, BSIZE, createFromStr,
+      tEndExec - tIniExec,
+      gflops,
+      tEndStart - tIniStart,
+      tEndWarm - tIniWarm,
+      tEndExec - tIniExec,
+      tEndFlush - tIniFlush,
+      tEndCheck - tIniCheck
+   );
+   fclose(res_file);
 
    return check_ok ? 0 : 1;
 }

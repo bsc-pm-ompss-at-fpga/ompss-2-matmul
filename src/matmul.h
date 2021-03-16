@@ -82,12 +82,15 @@ const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
 #endif /* defined(USE_FLOAT) */
 
 void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> <check>\n", argv0);
+   fprintf(stderr, "USAGE:\t%s <matrix size> <check> <create from>\n", argv0);
    fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
    fprintf(stderr, "      \t<check> values:\n");
    fprintf(stderr, "      \t  - 0 to disable checking\n");
    fprintf(stderr, "      \t  - 1 to enable checking\n");
    fprintf(stderr, "      \t  - 2 to generate checking reference\n");
+   fprintf(stderr, "      \t<create from> values:\n");
+   fprintf(stderr, "      \t  - 0 to create block tasks in FPGA\n");
+   fprintf(stderr, "      \t  - 1 to create block tasks in SMP\n");
 }
 
 double wall_time () {
