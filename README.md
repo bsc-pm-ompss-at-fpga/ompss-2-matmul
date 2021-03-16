@@ -20,7 +20,7 @@ cd matmul
 
 Build the application binaries:
 ```
-make
+make BOARD=zedboard CROSS_COMPILE=arm-linux-gnueabihf-
 ```
 ##### Build variables
 You can change the build process defining or modifying some environment variables.
