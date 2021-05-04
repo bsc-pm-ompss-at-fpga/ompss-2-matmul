@@ -40,18 +40,18 @@ else ifeq ($(OPENBLAS_SUPPORT_),YES)
 	LDFLAGS_ += -L$(OPENBLAS_LIB_DIR) -lopenblas
 endif
 
-ifdef USE_URAM
-	CFLAGS += -DUSE_URAM
-endif
-
-ifdef INTERCONNECT_REGSLICE
-	FPGA_LINKER_FLAGS_ = --Wf,--interconnect_regslice,$(INTERCONNECT_REGSLICE)
-endif
-
 ##CFLAGS += -DUSE_DOUBLE
 ##CFLAGS += -DUSE_IMPLEMENTS
 CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_HWRUNTIME=\"$(FPGA_HWRUNTIME)\"
 FPGA_LINKER_FLAGS_ =--Wf,--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME),--interconnect_opt=performance
+
+ifdef INTERCONNECT_REGSLICE
+	FPGA_LINKER_FLAGS_ += --Wf,--interconnect_regslice,$(INTERCONNECT_REGSLICE)
+endif
+
+ifdef USE_URAM
+	CFLAGS += -DUSE_URAM
+endif
 
 ifeq ($(FPGA_HWRUNTIME),som)
 	## Ignore the deps when spawning tasks inside the FPGA (only with SOM)
