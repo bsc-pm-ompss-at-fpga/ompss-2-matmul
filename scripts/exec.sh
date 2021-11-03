@@ -3,9 +3,10 @@
 MATRIX_SIZES=(2048 4096)
 RES_FILE=$(pwd -P)/test_results.json
 
-if [ "$BOARD" == "alveo_u200" ]; then
-  MATRIX_SIZES=(3072 6144)
-fi
+# Missing reference solution for 3072@256, so using 2048
+#if [ "$BOARD" == "alveo_u200" ]; then
+#  MATRIX_SIZES=(3072 6144)
+#fi
 
 for EXEC_MODE in d p; do
   for CREATE_FROM in 0 1; do
