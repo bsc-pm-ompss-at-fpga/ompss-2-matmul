@@ -34,14 +34,14 @@
 // General definitions
 #include "matmul.h"
 
-#pragma omp task
+#pragma oss task
 void setBlock(elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
       v[i] = val;
    }
 }
 
-#pragma omp task
+#pragma oss task
 void setBlockSeq(elem_t* v, int base) {
    for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
       v[i] = ((elem_t)((base/1024)%2)) - 1.0 + ((elem_t)(base%512))/1000;
@@ -49,7 +49,7 @@ void setBlockSeq(elem_t* v, int base) {
    }
 }
 
-#pragma omp task
+#pragma oss task
 void checkBlock(unsigned int* check_ok, const elem_t* res, const elem_t* ref, const float threshold)
 {
    for (unsigned int i = 0; i < BSIZE*BSIZE && ( *check_ok ); ++i) {
@@ -91,7 +91,7 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
                   checkBlock(&check_ok, &c[ci], &c_ref[ci], THRESHOLD);
                }
             }
-            #pragma omp taskwait
+            #pragma oss taskwait
             munmap((void *)c_ref, m2size*sizeof(elem_t));
             close(ref_file);
          }
@@ -116,8 +116,7 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
    return check_ok;
 }
 
-#pragma omp target device(fpga) num_instances(MBLOCK_NUM_ACCS)
-#pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
+#pragma oss task device(fpga) num_instances(MBLOCK_NUM_ACCS) copy_deps in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
 {
    #pragma HLS INLINE // off
@@ -170,8 +169,7 @@ void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 }
 #endif // defined(USE_IMPLEMENTS)
 
-#pragma omp target device(fpga) copy_in([msize*msize]a, [msize*msize]b) copy_inout([msize*msize]c)
-#pragma omp task
+#pragma oss task device(fpga) in([msize*msize]a, [msize*msize]b) inout([msize*msize]c)
 void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
    const unsigned int factor = MBLOCK_NUM_ACCS;
    const unsigned int b2size = BSIZE*BSIZE;
@@ -179,7 +177,6 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
    const unsigned int num_blocks_matrix = msize*msize/b2size;
    const unsigned int num_blocks_loop = num_blocks_matrix - num_blocks_matrix%factor;
    const unsigned int max_created_count = 8*MBLOCK_NUM_ACCS;
-   unsigned int created_count = 0;
    for (unsigned int l = 0; l < num_blocks_loop; l+=factor) {
       for (unsigned int k = 0; k < msize/BSIZE; k++) {
          for (unsigned int ll = l; ll < (l+factor); ll++) {
@@ -188,14 +185,8 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
             const unsigned int ai = k*b2size + i*BSIZE*msize;
             const unsigned int bi = j*b2size + k*BSIZE*msize;
             const unsigned int ci = ll*b2size;
+            #pragma oss taskcall affinity(ll-l)
             matmulBlock(a + ai, b + bi, c + ci);
-         }
-         created_count += factor;
-         if (created_count >= max_created_count) {
-            //NOTE: Synchronize the tasks periodically to ensure that internal queues are not filled.
-            //      Otherwise, the tasks may not be scheduled in a rond-robin way
-            #pragma omp taskwait
-            created_count = 0;
          }
       }
    }
@@ -208,9 +199,8 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
          const unsigned int ci = l*b2size;
          matmulBlock(a + ai, b + bi, c + ci);
       }
-      #pragma omp taskwait
+      #pragma oss taskwait
    }
-   #pragma omp taskwait
 }
 
 void matmulSMP(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
@@ -267,7 +257,7 @@ int main(int argc, char** argv) {
       setBlock(&c[i*b2size], 0);
    }
 
-   #pragma omp taskwait
+   #pragma oss taskwait
    const double tEndStart = wall_time();
    const double tIniWarm = tEndStart;
 
@@ -278,7 +268,7 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
-   #pragma omp taskwait noflush
+   #pragma oss taskwait noflush([m2size]c)
    const double tEndWarm = wall_time();
    const double tIniExec = tEndWarm;
 
@@ -289,12 +279,12 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
-   #pragma omp taskwait noflush
+   #pragma oss taskwait noflush([m2size]c)
    const double tEndExec = wall_time();
    const double tIniFlush = tEndExec;
 
    //The following TW will copy out the data moved to FPGA devices
-   #pragma omp taskwait
+   #pragma oss taskwait
    const double tEndFlush = wall_time();
    const double tIniCheck = tEndFlush;
 
@@ -342,7 +332,7 @@ int main(int argc, char** argv) {
       "matmul",
       MBLOCK_NUM_ACCS,
       FPGA_HWRUNTIME,
-      "ompss",
+      "ompss-2",
       RUNTIME_MODE,
       ELEM_T_STR,
       msize, BSIZE, createFromStr,
