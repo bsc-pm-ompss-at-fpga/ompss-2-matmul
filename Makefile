@@ -89,13 +89,11 @@ $(PROGRAM_)-seq: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	$(GCC_) $(CFLAGS_) -DRUNTIME_MODE=\"seq\" $^ -o $@ $(LDFLAGS_)
 
 bitstream-i: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
-	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $(MCC_FLAGS_I_) -DRUNTIME_MODE=\"instr\" $^ -o $(PROGRAM_)-i $(LDFLAGS_) \
 	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 
 bitstream-p: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
-	sed -i 's/num_instances(.)/num_instances($(MATMUL_NUM_ACCS))/1' $^
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) -DRUNTIME_MODE=\"perf\" $^ -o $(PROGRAM_)-p $(LDFLAGS_) \
 	--bitstream-generation $(FPGA_LINKER_FLAGS_) \
 	--variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)

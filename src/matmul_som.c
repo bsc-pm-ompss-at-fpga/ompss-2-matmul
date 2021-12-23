@@ -116,7 +116,7 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
    return check_ok;
 }
 
-#pragma omp target device(fpga) num_instances(3)
+#pragma omp target device(fpga) num_instances(MBLOCK_NUM_ACCS)
 #pragma omp task in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
 {
