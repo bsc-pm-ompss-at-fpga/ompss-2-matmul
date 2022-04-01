@@ -13,7 +13,7 @@ for EXEC_MODE in d p; do
     for MATRIX_SIZE in ${MATRIX_SIZES[@]}; do
       echo "=== Check mode: ${EXEC_MODE}, from: ${CREATE_FROM}, msize: ${MATRIX_SIZE} ==="
       CHECK=$((([ "$MATRIX_SIZE" == "2048" ] || [ "$MATRIX_SIZE" == "3072" ]) && echo 1) || echo 0)
-      NX_ARGS="--summary --fpga-alloc-pool-size=1G" timeout --preserve-status 250s ./build/matmul-${EXEC_MODE} ${MATRIX_SIZE} ${CHECK} ${CREATE_FROM}
+      NX_ARGS="--summary --fpga-alloc-pool-size=1G --smp-workers=6" timeout --preserve-status 250s ./build/matmul-${EXEC_MODE} ${MATRIX_SIZE} ${CHECK} ${CREATE_FROM}
       cat test_result.json >>$RES_FILE
       echo "," >>$RES_FILE
     done
