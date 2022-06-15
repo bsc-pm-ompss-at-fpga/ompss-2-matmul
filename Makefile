@@ -1,7 +1,7 @@
 .PHONY: clean info
 all: help
 
-PROGRAM_     = matmul
+PROGRAM_ = matmul
 
 MCC         ?= fpgacc
 MCC_         = $(CROSS_COMPILE)$(MCC)
@@ -44,7 +44,7 @@ else ifeq ($(OPENBLAS_SUPPORT_),YES)
 	LDFLAGS_ += -L$(OPENBLAS_LIB_DIR) -lopenblas
 endif
 
-CFLAGS += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_HWRUNTIME=\"$(FPGA_HWRUNTIME)\"
+CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_HWRUNTIME=\"$(FPGA_HWRUNTIME)\"
 FPGA_LINKER_FLAGS_ =--Wf,--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME)
 ifdef FPGA_MEMORY_PORT_WIDTH
 	MCC_FLAGS_ += --variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
@@ -77,7 +77,7 @@ else ifeq ($(FPGA_HWRUNTIME),pom)
 	FPGA_LINKER_FLAGS_ += --Wf,--picos_max_deps_per_task=2,--picos_max_args_per_task=3,--picos_max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=64,--picos_vm_size=40
 endif
 ifdef USE_URAM
-	CFLAGS += -DUSE_URAM
+	CFLAGS_ += -DUSE_URAM
 endif
 
 help:
@@ -90,10 +90,10 @@ help:
 $(PROGRAM_)-p: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_) $^ -o $@ $(LDFLAGS_)
 
-$(PROGRAM_)-i:  ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+$(PROGRAM_)-i: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_I_) $^ -o $@ $(LDFLAGS_)
 
-$(PROGRAM_)-d:  ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
+$(PROGRAM_)-d: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
 	$(MCC_) $(CFLAGS_) $(MCC_FLAGS_D_) $^ -o $@ $(LDFLAGS_)
 
 $(PROGRAM_)-seq: ./src/$(PROGRAM_)_$(FPGA_HWRUNTIME).c
