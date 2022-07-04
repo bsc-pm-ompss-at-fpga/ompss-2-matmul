@@ -34,6 +34,11 @@
 // General definitions
 #include "matmul.h"
 
+#pragma oss task in([m2size]data)
+void flushData(float *data, int m2size) {
+    //dummy task to pull data from fpga
+}
+
 #pragma oss task
 void setBlock(elem_t* v, const elem_t val) {
    for (unsigned int i = 0; i < BSIZE*BSIZE; ++i) {
@@ -282,6 +287,8 @@ int main(int argc, char** argv) {
    #pragma oss taskwait noflush([m2size]c)
    const double tEndExec = wall_time();
    const double tIniFlush = tEndExec;
+
+   flushData(c, m2size);
 
    //The following TW will copy out the data moved to FPGA devices
    #pragma oss taskwait
