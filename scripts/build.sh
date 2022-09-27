@@ -6,6 +6,9 @@ if [ "$BOARD" == "" ]; then
 elif [ "$FPGA_HWRUNTIME" == "" ]; then
   echo "FPGA_HWRUNTIME environment variable not defined"
   exit 1
+elif [ "$FPGA_CLOCK" == "" ]; then
+  echo "FPGA_CLOCK environment variable not defined. Using default: 100"
+  FPGA_CLOCK=${FPGA_CLOCK:-100}
 fi
 
 PROG_NAME=matmul
@@ -33,19 +36,30 @@ else
   mv ${PROG_NAME}_ait/${PROG_NAME}.bit $OUT_DIR/bitstream.bit
   mv ${PROG_NAME}_ait/${PROG_NAME}.xtasks.config $OUT_DIR/xtasks.config
 
-  printf "{\"version\": \"${FPGA_HWRUNTIME}_${MATMUL_BLOCK_SIZE}\", " >>$RES_FILE
+  printf "{\"benchmark\": \"${PROG_NAME}\", " >>$RES_FILE
+  printf "\"toolchain\": \"ompss-2\", " >>$RES_FILE
   printf "\"hwruntime\": \"${FPGA_HWRUNTIME}\", " >>$RES_FILE
+  printf "\"board\": \"${BOARD}\", " >>$RES_FILE
+  printf "\"builder\": \"${CI_NODE}\", " >>$RES_FILE
+  printf "\"version\": \"${MATMUL_NUM_ACCS}accs ${MATMUL_BLOCK_SIZE}BS kij memport_128 noflush\", " >>$RES_FILE
   printf "\"accels_freq\": \"${FPGA_CLOCK}\", " >>$RES_FILE
-  printf "\"memory_port_width\": \"${FPGA_MEMORY_PORT_WIDTH}\", " >>$RES_FILE
-  printf "\"benchmark\": \"${PROG_NAME}" >>$RES_FILE
+  printf "\"memory_port_width\": \"${FPGA_MEMORY_PORT_WIDTH}" >>$RES_FILE
   for PARAM in BRAM DSP FF LUT; do
-    printf "\", \"${PARAM}\": \"" >>$RES_FILE
+    printf "\", \"${PARAM}_HLS\": \"" >>$RES_FILE
     grep "$PARAM" ${PROG_NAME}_ait/${PROG_NAME}.resources-hls.txt | awk '{printf $2}' >>$RES_FILE
   done
+  if $(grep -q URAM ${PROG_NAME}_ait/${PROG_NAME}.resources-hls.txt); then
+    printf "\", \"URAM_HLS\": \"" >>$RES_FILE
+    grep "URAM" ${PROG_NAME}_ait/${PROG_NAME}.resources-hls.txt | awk '{printf $2}' >>$RES_FILE
+  fi
   for PARAM in BRAM DSP FF LUT; do
     printf "\", \"${PARAM}_IMPL\": \"" >>$RES_FILE
     grep "${PARAM}" ${PROG_NAME}_ait/${PROG_NAME}.resources-impl.txt | awk '{printf $2}' >>$RES_FILE
   done
+  if $(grep -q URAM ${PROG_NAME}_ait/${PROG_NAME}.resources-impl.txt); then
+    printf "\", \"URAM_IMPL\": \"" >>$RES_FILE
+    grep "URAM" ${PROG_NAME}_ait/${PROG_NAME}.resources-impl.txt | awk '{printf $2}' >>$RES_FILE
+  fi
   for PARAM in WNS TNS NUM_ENDPOINTS NUM_FAIL_ENDPOINTS; do
     printf "\", \"${PARAM}\": \"" >>$RES_FILE
     grep "${PARAM}" ${PROG_NAME}_ait/${PROG_NAME}.timing-impl.txt | awk '{printf $2}' >>$RES_FILE

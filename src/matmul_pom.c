@@ -318,24 +318,26 @@ int main(int argc, char** argv) {
    fprintf(res_file,
       "{ \
          \"benchmark\": \"%s\", \
-         \"version\": \"%uaccs kij memport_128 noflush\", \
+         \"toolchain\": \"%s\", \
          \"hwruntime\": \"%s\", \
-         \"pm\": \"%s_%s\", \
-         \"datatype\": \"%s\", \
+         \"board\": \"%s\", \
+         \"version\": \"%uaccs %uBS kij memport_128 noflush\", \
+         \"exectype\": \"%s\", \
          \"argv\": \"%d %d %s\", \
          \"exectime\": \"%f\", \
          \"performance\": \"%f\", \
-         \"note\": \"init %f, warm %f, exec %f, flush %f, check %f\" \
+         \"note\": \"datatype %s, init %f, warm %f, exec %f, flush %f, check %f\" \
       }",
       "matmul",
-      MBLOCK_NUM_ACCS,
-      FPGA_HWRUNTIME,
       "ompss-2",
+      FPGA_HWRUNTIME,
+      BOARD,
+      MBLOCK_NUM_ACCS, BSIZE,
       RUNTIME_MODE,
-      ELEM_T_STR,
       msize, BSIZE, createFromStr,
       tEndExec - tIniExec,
       gflops,
+      ELEM_T_STR,
       tEndStart - tIniStart,
       tEndWarm - tIniWarm,
       tEndExec - tIniExec,
