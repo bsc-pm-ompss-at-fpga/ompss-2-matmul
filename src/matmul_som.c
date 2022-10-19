@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
-   #pragma oss taskwait noflush([m2size]c)
+   #pragma oss taskwait noflush([m2size]a, [m2size]b, [m2size]c)
    const double tEndWarm = wall_time();
    const double tIniExec = tEndWarm;
 
@@ -284,13 +284,12 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
-   #pragma oss taskwait noflush([m2size]c)
+   #pragma oss taskwait noflush([m2size]a, [m2size]b, [m2size]c)
    const double tEndExec = wall_time();
    const double tIniFlush = tEndExec;
 
    flushData(c, m2size);
 
-   //The following TW will copy out the data moved to FPGA devices
    #pragma oss taskwait
    const double tEndFlush = wall_time();
    const double tIniCheck = tEndFlush;
