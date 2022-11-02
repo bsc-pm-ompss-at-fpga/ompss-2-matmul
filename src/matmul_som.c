@@ -124,7 +124,7 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
 #pragma oss task device(fpga) num_instances(MBLOCK_NUM_ACCS) copy_deps in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
 void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
 {
-   #pragma HLS INLINE // off
+   #pragma HLS INLINE
    #pragma HLS array_partition variable=a cyclic factor=MBLOCK_FPGA_PWIDTH/64
    #pragma HLS array_partition variable=b cyclic factor=BSIZE/(MBLOCK_II*2)
    #pragma HLS array_partition variable=c cyclic factor=BSIZE/MBLOCK_II
@@ -176,6 +176,7 @@ void matmulBlockSmp(elem_t *a, elem_t *b, elem_t *c) {
 
 #pragma oss task device(fpga) in([msize*msize]a, [msize*msize]b) inout([msize*msize]c)
 void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int msize) {
+#pragma HLS inline
    const unsigned int factor = MBLOCK_NUM_ACCS;
    const unsigned int b2size = BSIZE*BSIZE;
    const unsigned int num_blocks_side = msize/BSIZE;
