@@ -7,9 +7,10 @@ MCC         ?= fpgacc
 MCC_         = $(CROSS_COMPILE)$(MCC)
 GCC_         = $(CROSS_COMPILE)gcc
 CFLAGS_      = $(CFLAGS) -O3 -std=gnu99
-MCC_FLAGS_   = $(MCC_FLAGS) --ompss-2 --fpga -DRUNTIME_MODE=\"perf\"
-MCC_FLAGS_I_ = $(MCC_FLAGS_) --instrument -DRUNTIME_MODE=\"instr\"
-MCC_FLAGS_D_ = $(MCC_FLAGS_) --debug -g -k -DRUNTIME_MODE=\"debug\"
+MCC_FLAGS_COMMON_ = $(MCC_FLAGS) --ompss-2 --fpga
+MCC_FLAGS_   = $(MCC_FLAGS_COMMON_) -DRUNTIME_MODE=\"perf\"
+MCC_FLAGS_I_ = $(MCC_FLAGS_COMMON_) --instrument -DRUNTIME_MODE=\"instr\"
+MCC_FLAGS_D_ = $(MCC_FLAGS_COMMON_) --debug -g -k -DRUNTIME_MODE=\"debug\"
 LDFLAGS_     = $(LDFLAGS)
 
 # FPGA bitstream Variables
