@@ -75,7 +75,7 @@ ifeq ($(FPGA_HWRUNTIME),som)
 	## Ignore the deps when spawning tasks inside the FPGA (only with SOM)
 	FPGA_LINKER_FLAGS_ += --variable=fpga_ignore_deps_task_spawn:1
 else ifeq ($(FPGA_HWRUNTIME),pom)
-	FPGA_LINKER_FLAGS_ += --Wf,--picos_max_deps_per_task=2,--picos_max_args_per_task=3,--picos_max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=64,--picos_vm_size=40
+	FPGA_LINKER_FLAGS_ += --Wf,--max_deps_per_task=2,--max_args_per_task=3,--max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=64,--picos_vm_size=40
 endif
 ifdef USE_URAM
 	CFLAGS_ += -DUSE_URAM
