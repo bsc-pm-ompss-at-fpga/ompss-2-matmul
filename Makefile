@@ -46,7 +46,7 @@ else ifeq ($(OPENBLAS_SUPPORT_),YES)
 endif
 
 CFLAGS_ += -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_HWRUNTIME=\"$(FPGA_HWRUNTIME)\" -DBOARD=\"$(BOARD)\"
-FPGA_LINKER_FLAGS_ =--Wf,--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--hwruntime=$(FPGA_HWRUNTIME)
+FPGA_LINKER_FLAGS_ =--Wf,--name=$(PROGRAM_),--board=$(BOARD),-c=$(FPGA_CLOCK),--max_deps_per_task=2,--max_args_per_task=3,--max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=64,--picos_vm_size=40
 ifdef FPGA_MEMORY_PORT_WIDTH
 	MCC_FLAGS_ += --variable=fpga_memory_port_width:$(FPGA_MEMORY_PORT_WIDTH)
 endif
@@ -70,12 +70,6 @@ ifdef SLR_SLICES
 endif
 ifdef PLACEMENT_FILE
 	FPGA_LINKER_FLAGS_ += --Wf,--placement_file=$(PLACEMENT_FILE)
-endif
-ifeq ($(FPGA_HWRUNTIME),som)
-	## Ignore the deps when spawning tasks inside the FPGA (only with SOM)
-	FPGA_LINKER_FLAGS_ += --variable=fpga_ignore_deps_task_spawn:1
-else ifeq ($(FPGA_HWRUNTIME),pom)
-	FPGA_LINKER_FLAGS_ += --Wf,--max_deps_per_task=2,--max_args_per_task=3,--max_copies_per_task=3,--picos_tm_size=32,--picos_dm_size=64,--picos_vm_size=40
 endif
 ifdef USE_URAM
 	CFLAGS_ += -DUSE_URAM
