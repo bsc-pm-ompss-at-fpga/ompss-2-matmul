@@ -56,7 +56,7 @@
 
 // Global variables
 const float THRESHOLD = 1e-4;
-const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
+//const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
 const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
 const unsigned int MBLOCK_FPGA_PWIDTH = FPGA_MEMORY_PORT_WIDTH;
 const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;

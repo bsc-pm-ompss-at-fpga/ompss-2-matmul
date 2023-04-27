@@ -121,8 +121,8 @@ unsigned int matmulCheck(const unsigned int check, const elem_t* c, const unsign
    return check_ok;
 }
 
-#pragma oss task device(fpga) num_instances(MBLOCK_NUM_ACCS) copy_deps in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c)
-void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c)
+#pragma oss task device(fpga) num_instances(MATMUL_NUM_ACCS) copy_deps in([BSIZE*BSIZE]a, [BSIZE*BSIZE]b) inout([BSIZE*BSIZE]c) affinity(af)
+void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c, int af)
 {
    #pragma HLS INLINE
    #pragma HLS array_partition variable=a cyclic factor=MBLOCK_FPGA_PWIDTH/64
@@ -191,8 +191,9 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
             const unsigned int ai = k*b2size + i*BSIZE*msize;
             const unsigned int bi = j*b2size + k*BSIZE*msize;
             const unsigned int ci = ll*b2size;
-            #pragma oss taskcall affinity(ll-l)
-            matmulBlock(a + ai, b + bi, c + ci);
+	    //Not implemented yet
+            //#pragma oss taskcall affinity(ll-l)
+            matmulBlock(a + ai, b + bi, c + ci, ll-l);
          }
       }
    }
@@ -203,7 +204,7 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
          const unsigned int ai = k*b2size + i*BSIZE*msize;
          const unsigned int bi = j*b2size + k*BSIZE*msize;
          const unsigned int ci = l*b2size;
-         matmulBlock(a + ai, b + bi, c + ci);
+         matmulBlock(a + ai, b + bi, c + ci, 0xFF);
       }
       #pragma oss taskwait
    }
@@ -217,7 +218,7 @@ void matmulSMP(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int m
          for (unsigned int j = 0; j < msize/BSIZE; j++) {
             unsigned int const bi = j*b2size + k*BSIZE*msize;
             unsigned int const ci = j*b2size + i*BSIZE*msize;
-            matmulBlock(a + ai, b + bi, c + ci);
+            matmulBlock(a + ai, b + bi, c + ci, 0xFF);
          }
       }
    }
@@ -274,6 +275,7 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
+   //Noflush is not yet implemented
    #pragma oss taskwait noflush([m2size]a, [m2size]b, [m2size]c)
    const double tEndWarm = wall_time();
    const double tIniExec = tEndWarm;
@@ -285,13 +287,14 @@ int main(int argc, char** argv) {
      matmulSMP(a, b, c, msize);
    }
 
+   //taskwait is not implemented (yet)
    #pragma oss taskwait noflush([m2size]a, [m2size]b, [m2size]c)
    const double tEndExec = wall_time();
    const double tIniFlush = tEndExec;
 
-   flushData(c, m2size);
-
-   #pragma oss taskwait
+   //This would be needed in case of using noflush
+   //flushData(c, m2size);
+   //#pragma oss taskwait
    const double tEndFlush = wall_time();
    const double tIniCheck = tEndFlush;
 
@@ -328,7 +331,6 @@ int main(int argc, char** argv) {
       "{ \
          \"benchmark\": \"%s\", \
          \"toolchain\": \"%s\", \
-         \"hwruntime\": \"%s\", \
          \"board\": \"%s\", \
          \"version\": \"%uaccs %uBS kij memport_128 noflush\", \
          \"exectype\": \"%s\", \
@@ -339,7 +341,6 @@ int main(int argc, char** argv) {
       }",
       "matmul",
       "ompss-2",
-      FPGA_HWRUNTIME,
       BOARD,
       MBLOCK_NUM_ACCS, BSIZE,
       RUNTIME_MODE,
