@@ -33,6 +33,24 @@
 
 // General definitions
 #include "matmul.h"
+#include "matmul.fpga.h"
+
+const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
+const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
+const unsigned int MBLOCK_FPGA_PWIDTH = FPGA_MEMORY_PORT_WIDTH;
+const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
+
+void usage (char* argv0) {
+   fprintf(stderr, "USAGE:\t%s <matrix size> <check> <create from>\n", argv0);
+   fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
+   fprintf(stderr, "      \t<check> values:\n");
+   fprintf(stderr, "      \t  - 0 to disable checking\n");
+   fprintf(stderr, "      \t  - 1 to enable checking\n");
+   fprintf(stderr, "      \t  - 2 to generate checking reference\n");
+   fprintf(stderr, "      \t<create from> values:\n");
+   fprintf(stderr, "      \t  - 0 to create block tasks in FPGA\n");
+   fprintf(stderr, "      \t  - 1 to create block tasks in SMP\n");
+}
 
 #pragma oss task in([m2size]data)
 void flushData(float *data, int m2size) {

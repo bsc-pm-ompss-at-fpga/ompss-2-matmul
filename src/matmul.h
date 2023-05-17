@@ -57,18 +57,18 @@
 // Global variables
 const float THRESHOLD = 1e-4;
 //const unsigned int BSIZE = MATMUL_BLOCK_SIZE;
-const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
-const unsigned int MBLOCK_FPGA_PWIDTH = FPGA_MEMORY_PORT_WIDTH;
-const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
+//const unsigned int MBLOCK_II = MATMUL_BLOCK_II;
+//const unsigned int MBLOCK_FPGA_PWIDTH = FPGA_MEMORY_PORT_WIDTH;
+//const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
 
 // Elements type
-#if defined(USE_DOUBLE)
-   typedef double     elem_t;
-#  define  ELEM_T_STR "double"
-#else
-   typedef float      elem_t;
-#  define  ELEM_T_STR "float"
-#endif /* defined(USE_FLOAT) */
+//#if defined(USE_DOUBLE)
+//   typedef double     elem_t;
+//#  define  ELEM_T_STR "double"
+//#else
+//   typedef float      elem_t;
+//#  define  ELEM_T_STR "float"
+//#endif /* defined(USE_FLOAT) */
 
 // MKL/OpenBLAS interface
 #if defined(USE_DOUBLE)
@@ -78,18 +78,6 @@ const unsigned int MBLOCK_NUM_ACCS = MATMUL_NUM_ACCS;
 #  define  GEMM       SGEMM
 #  define  cblas_gemm cblas_sgemm
 #endif /* defined(USE_FLOAT) */
-
-void usage (char* argv0) {
-   fprintf(stderr, "USAGE:\t%s <matrix size> <check> <create from>\n", argv0);
-   fprintf(stderr, "      \t<block size> is fixed to %u\n", BSIZE);
-   fprintf(stderr, "      \t<check> values:\n");
-   fprintf(stderr, "      \t  - 0 to disable checking\n");
-   fprintf(stderr, "      \t  - 1 to enable checking\n");
-   fprintf(stderr, "      \t  - 2 to generate checking reference\n");
-   fprintf(stderr, "      \t<create from> values:\n");
-   fprintf(stderr, "      \t  - 0 to create block tasks in FPGA\n");
-   fprintf(stderr, "      \t  - 1 to create block tasks in SMP\n");
-}
 
 double wall_time () {
    struct timespec ts;
