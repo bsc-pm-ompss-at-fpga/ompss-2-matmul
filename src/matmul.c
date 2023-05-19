@@ -203,6 +203,7 @@ void matmulFPGA(const elem_t *a, const elem_t *b, elem_t *c, const unsigned int 
    const unsigned int max_created_count = 8*MBLOCK_NUM_ACCS;
    for (unsigned int l = 0; l < num_blocks_loop; l+=factor) {
       for (unsigned int k = 0; k < msize/BSIZE; k++) {
+#pragma HLS loop_flatten off
          for (unsigned int ll = l; ll < (l+factor); ll++) {
             const unsigned int i = ll/num_blocks_side;
             const unsigned int j = ll%num_blocks_side;
