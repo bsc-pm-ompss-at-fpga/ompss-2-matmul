@@ -26,7 +26,7 @@ ifdef INTERCONNECT_OPT
 	AIT_FLAGS__ += --interconnect_opt=$(INTERCONNECT_OPT)
 endif
 ifdef INTERCONNECT_REGSLICE
-	AIT_FLAGS__ += --interconnect_regslice,$(INTERCONNECT_REGSLICE)
+	AIT_FLAGS__ += --interconnect_regslice=$(INTERCONNECT_REGSLICE)
 endif
 ifdef FLOORPLANNING_CONSTR
 	AIT_FLAGS__ += --floorplanning_constr=$(FLOORPLANNING_CONSTR)
