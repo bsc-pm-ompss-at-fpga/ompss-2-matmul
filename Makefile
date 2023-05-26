@@ -28,6 +28,10 @@ MATMUL_NUM_ACCS        ?= 1
 
 COMPILER_FLAGS_ += -DMATMUL_BLOCK_SIZE=$(MATMUL_BLOCK_SIZE) -DMATMUL_BLOCK_II=$(MATMUL_BLOCK_II) -DMATMUL_NUM_ACCS=$(MATMUL_NUM_ACCS) -DFPGA_MEMORY_PORT_WIDTH=$(FPGA_MEMORY_PORT_WIDTH) -DBOARD=\"$(BOARD)\"
 
+ifdef USE_URAM
+	COMPILER_FLAGS_ += -DUSE_URAM
+endif
+
 common-help:
 	@echo 'Supported targets:        $(PROGRAM_)-p, $(PROGRAM_)-i, $(PROGRAM_)-d, $(PROGRAM_)-seq, design-p, design-i, design-d, bitstream-p, bitstream-i, bitstream-d, clean, help'
 	@echo 'FPGA env. variables:      BOARD, FPGA_CLOCK'
