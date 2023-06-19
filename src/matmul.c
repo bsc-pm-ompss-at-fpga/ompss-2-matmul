@@ -147,8 +147,8 @@ void matmulBlock(const elem_t *a, const elem_t *b, elem_t *c, int af)
    #pragma HLS array_partition variable=b cyclic factor=BSIZE/(MBLOCK_II*2)
    #pragma HLS array_partition variable=c cyclic factor=BSIZE/MBLOCK_II
 #ifdef USE_URAM
-   #pragma HLS RESOURCE variable=b core=XPM_MEMORY uram
-   #pragma HLS RESOURCE variable=a core=XPM_MEMORY uram
+   #pragma HLS bind_storage variable=a type=RAM_T2P impl=URAM
+   #pragma HLS bind_storage variable=b type=RAM_T2P impl=URAM
 #endif
 
    for (int k = 0; k < BSIZE; ++k) {
